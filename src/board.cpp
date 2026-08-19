@@ -19,8 +19,10 @@ void chessBoard::newGame() {
     }
     };
     moves.clear();
-    whiteCanCastle = true;
-    blackCanCastle = true;
+    whiteCanLongCastle = true;
+    whiteCanShortCastle = true;
+    blackCanLongCastle = true;
+    blackCanShortCastle = true;
     white = true;
     black = false;
 }
@@ -43,6 +45,8 @@ void chessBoard::playMove(int start, int end) {
     const int sCol = start % 8;
     const int eRow = end / 8;
     const int eCol = end % 8;
+    bool shortCastled = false;
+    bool longCastled = false;
 
     if (start < 0 || start > 63) {
         cout << "Invalid start index" << start << endl;
@@ -100,6 +104,15 @@ void chessBoard::playMove(int start, int end) {
             } else {
                 return;
             }
+
+            // remove castling rights
+            if (white && sRow == 7) {
+                if (sCol == 0) whiteCanLongCastle = false;
+                else if (sCol == 7) whiteCanShortCastle = false;
+            } else if (black && sRow == 0) {
+                if (sCol == 0) blackCanLongCastle = false;
+                else if (sCol == 7) blackCanShortCastle = false;
+            }
         } else if (board[sRow][sCol] == 'b' || board[sRow][sCol] == 'B') {
             if (abs(sRow - eRow) == abs(sCol - eCol)) {
                 if (!checkDiagonal(sRow, sCol, eRow, eCol)) return;
@@ -123,45 +136,51 @@ void chessBoard::playMove(int start, int end) {
         } else if (board[sRow][sCol] == 'n' || board[sRow][sCol] == 'N') {
             if (!((abs(sRow - eRow) == 2 && abs(sCol - eCol) == 1) || (abs(sRow - eRow) == 1 && abs(sCol - eCol) == 2))) return;
         } else {
-            if (board[sRow][sCol] == 'K' && whiteCanCastle) {
-                if (eRow == 7 && eCol == 2 && checkRow(7, 0, 4)) {
-                    playMove(sRow, sCol, eRow, eCol);
-                    playMove(7, 0, 7, 3);
-                    moves.push_back("O-O-O");
-                    return;
-                    // TODO check
-                } else if (eRow == 7 && eCol == 6 && checkRow(7, 4, 7)) {
-                    playMove(sRow, sCol, eRow, eCol);
+            // king
+            if (white) {
+                if (whiteCanShortCastle && eRow == sRow && eCol == 6 && checkRow(7, 4, 7)) {
                     playMove(7, 7, 7, 5);
-                    moves.push_back("O-O");
-                    changePlayer();
-                    return;
-                    // TODO check
-                } 
-                // TODO castling, check, mate etc.
+                    shortCastled = true;
+                } else if (whiteCanLongCastle && eRow == sRow && eCol == 2 && checkRow(7, 0, 4)) {
+                    playMove(7, 0, 7, 3);
+                    longCastled = true;
+                } else if (abs(sRow - eRow) > 1 || abs(sCol - eCol) > 1) return;
+                whiteCanLongCastle = false;
+                whiteCanShortCastle = false;
             } else {
-                if (abs(sRow - eRow) > 1 || abs(sCol - eCol) > 1) {
-                    return;
-                }
+                if (blackCanShortCastle && eRow == sRow && eCol == 6 && checkRow(0, 4, 7)) {
+                    playMove(0, 7, 0, 5);
+                    shortCastled = true;
+                } else if (blackCanLongCastle && eRow == sRow && eCol == 2 && checkRow(0, 0, 4)) {
+                    playMove(0, 0, 0, 3);
+                    longCastled = true;
+                } else if (abs(sRow - eRow) > 1 || abs(sCol - eCol) > 1) return;
+                blackCanLongCastle = false;
+                blackCanShortCastle = false;
             }
-
         }
 
         string move = string();
-        if (!isPawn) {
-            move += toupper(board[sRow][sCol]);
-        }
 
-        if (board[eRow][eCol] != ' ') {
-            if (isPawn) {
-                move = move + (char)('a' + sCol) + 'x';
-            } else {
-                move += 'x';
+        if (shortCastled) {
+            move = "O-O";
+        } else if (longCastled) {
+            move = "O-O-O";
+        } else {
+            if (!isPawn) {
+                move += toupper(board[sRow][sCol]);
             }
+
+            if (board[eRow][eCol] != ' ') {
+                if (isPawn) {
+                    move = move + (char)('a' + sCol) + 'x';
+                } else {
+                    move += 'x';
+                }
+            }
+
+            move = move + (char)('a' + eCol) + (char)('8' - eRow);
         }
-
-        move = move + (char)('a' + eCol) + (char)('8' - eRow);
-
         playMove(sRow, sCol, eRow, eCol);
 
         if (promoted) {
@@ -172,6 +191,7 @@ void chessBoard::playMove(int start, int end) {
                 board[eRow][eCol] = 'q';
             }
         }
+
         moves.push_back(move);
 
         changePlayer();

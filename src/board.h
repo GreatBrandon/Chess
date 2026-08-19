@@ -11,8 +11,10 @@ public:
 	bool white = true;
 	bool black = false;
 	vector<string> moves;
-	bool whiteCanCastle = true;
-	bool blackCanCastle = true;
+	bool whiteCanLongCastle = true;
+	bool whiteCanShortCastle = true;
+	bool blackCanLongCastle = true;
+	bool blackCanShortCastle = true;
 	bool canEnPassant = false;
 	int enPassantCol = -1;
 
