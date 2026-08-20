@@ -1,6 +1,24 @@
 #include "board.h"
 #include <iostream>
 
+namespace White {
+    constexpr char KING = 'K',
+        QUEEN = 'Q',
+        BISHOP = 'B',
+        KNIGHT = 'N',
+        ROOK = 'R',
+        PAWN = 'P';
+};
+
+namespace Black {
+    constexpr char KING = 'k',
+        QUEEN = 'q',
+        BISHOP = 'b',
+        KNIGHT = 'n',
+        ROOK = 'r',
+        PAWN = 'p';
+};
+
 chessBoard::chessBoard() {
     newGame();
 }
@@ -66,7 +84,7 @@ void chessBoard::playMove(int start, int end) {
         cout << "Black player cannot take their own piece" << endl;
         // TODO get rid of error messages
     } else {
-        bool isPawn = (board[sRow][sCol] == 'p' || board[sRow][sCol] == 'P');
+        bool isPawn = (board[sRow][sCol] == White::PAWN || board[sRow][sCol] == Black::PAWN);
         bool promoted = false;
         if (isPawn) {
             if (abs(sRow - eRow) > 2 || abs(sCol - eCol) > 1) return;
@@ -84,7 +102,8 @@ void chessBoard::playMove(int start, int end) {
                     if (board[eRow][eCol] != ' ') return;
                 }
             } else { // pawn moves by 2
-                if (board[eRow][eCol] != ' ' || abs(sCol - eCol) != 0 || (white && board[sRow - 1][sCol] != ' ') || (white && sRow != 6) || (black && board[sRow + 1][eCol] != ' ') || (black && sRow != 1)) return;
+                if (board[eRow][eCol] != ' ' || abs(sCol - eCol) != 0 || (white && board[sRow - 1][sCol] != ' ') || (white && sRow != 6)
+                    || (black && board[sRow + 1][eCol] != ' ') || (black && sRow != 1)) return;
                 enPassantCol = eCol;
                 canEnPassant = true;
             }
@@ -92,7 +111,7 @@ void chessBoard::playMove(int start, int end) {
             if ((white && eRow == 0) || (black && eRow == 7)) {
                 promoted = true;
             }
-        } else if (board[sRow][sCol] == 'r' || board[sRow][sCol] == 'R') {
+        } else if (board[sRow][sCol] == White::ROOK || board[sRow][sCol] == Black::ROOK) {
             if (sRow == eRow) {
                 int s = min(sCol, eCol);
                 int e = max(sCol, eCol);
@@ -113,13 +132,13 @@ void chessBoard::playMove(int start, int end) {
                 if (sCol == 0) blackCanLongCastle = false;
                 else if (sCol == 7) blackCanShortCastle = false;
             }
-        } else if (board[sRow][sCol] == 'b' || board[sRow][sCol] == 'B') {
+        } else if (board[sRow][sCol] == White::BISHOP || board[sRow][sCol] == Black::BISHOP) {
             if (abs(sRow - eRow) == abs(sCol - eCol)) {
                 if (!checkDiagonal(sRow, sCol, eRow, eCol)) return;
             } else {
                 return;
             }
-        } else if (board[sRow][sCol] == 'q' || board[sRow][sCol] == 'Q') {
+        } else if (board[sRow][sCol] == White::QUEEN || board[sRow][sCol] == Black::QUEEN) {
             if (sRow == eRow) {
                 int s = min(sCol, eCol);
                 int e = max(sCol, eCol);
@@ -133,7 +152,7 @@ void chessBoard::playMove(int start, int end) {
             } else {
                 return;
             }
-        } else if (board[sRow][sCol] == 'n' || board[sRow][sCol] == 'N') {
+        } else if (board[sRow][sCol] == White::KNIGHT || board[sRow][sCol] == Black::KNIGHT) {
             if (!((abs(sRow - eRow) == 2 && abs(sCol - eCol) == 1) || (abs(sRow - eRow) == 1 && abs(sCol - eCol) == 2))) return;
         } else {
             // king
@@ -186,9 +205,9 @@ void chessBoard::playMove(int start, int end) {
         if (promoted) {
             move += "=Q";
             if (white) {
-                board[eRow][eCol] = 'Q';
+                board[eRow][eCol] = White::QUEEN;
             } else {
-                board[eRow][eCol] = 'q';
+                board[eRow][eCol] = Black::QUEEN;
             }
         }
 
