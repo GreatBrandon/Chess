@@ -1,4 +1,6 @@
 #pragma once
+#include "common.h"
+#include "engine.h"
 #include <array>
 #include <vector>
 #include <string>
@@ -10,6 +12,7 @@ public:
 	array<array<char, 8>, 8> board;
 	bool white = true;
 	bool black = false;
+	Engine engine = Engine();
 	vector<string> moves;
 	bool whiteCanLongCastle = true;
 	bool whiteCanShortCastle = true;

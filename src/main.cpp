@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "common.h"
 #include "board.h"
 #include <string>
 #include <map>
@@ -53,22 +54,29 @@ int main () {
 			Vector2 mousePos = GetMousePosition();
 			for (int row = 0; row < 8; row++) {
 				for (int col = 0; col < 8; col++) {
-					if (CheckCollisionPointRec(mousePos, rects[row][col]) && board.board[row][col] != ' ') {
- 						selectedRect = row * 8 + col;
+					if (CheckCollisionPointRec(mousePos, rects[row][col]) && 
+						((board.white && isWhitePiece(board.board[row][col]))
+						|| (board.black && isBlackPiece(board.board[row][col])))) {
+							selectedRect = row * 8 + col;
 					}
 				}
 			}
 		} else if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
-			Vector2 mousePos = GetMousePosition();
-			for (int row = 0; row < 8; row++) {
-				for (int col = 0; col < 8; col++) {
-					if (CheckCollisionPointRec(mousePos, rects[row][col])) {
-						droppedRect = row * 8 + col;
+			if (selectedRect != -1) {
+				Vector2 mousePos = GetMousePosition();
+				for (int row = 0; row < 8; row++) {
+					for (int col = 0; col < 8; col++) {
+						if (CheckCollisionPointRec(mousePos, rects[row][col]) && ((board.white && !isWhitePiece(board.board[row][col])) || (board.black && !isBlackPiece(board.board[row][col])))) {
+							droppedRect = row * 8 + col;
+						}
 					}
 				}
+				if (droppedRect != -1 && droppedRect != selectedRect) {
+					board.playMove(selectedRect, droppedRect);
+				}
+				droppedRect = -1;
+				selectedRect = -1;
 			}
-			board.playMove(selectedRect, droppedRect);
-			selectedRect = -1;
 		}
 
 
