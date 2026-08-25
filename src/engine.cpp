@@ -3,9 +3,9 @@
 
 Engine::Engine() {};
 
-map<string, Move> Engine::generateLegalMoves(array<array<char, 8>, 8> board, bool white) {
+map<string, Move> Engine::generateLegalMoves(array<array<char, 8>, 8> board, BoardState state) {
     this->board = board;
-    isWhite = white;
+    this->isWhite = state.isWhite;
     legalMoves.clear();
 
     for (int row = 0; row < 8; row++) {
@@ -13,7 +13,7 @@ map<string, Move> Engine::generateLegalMoves(array<array<char, 8>, 8> board, boo
             char piece = board[row][col];
             this->sRow = row;
             this->sCol = col;
-            if (white and isWhitePiece(piece)) {
+            if (isWhite and isWhitePiece(piece)) {
                 if (piece == White::KING) {
                     generateLegalMovesKing();
                 } else if (piece == White::QUEEN) {
@@ -30,7 +30,7 @@ map<string, Move> Engine::generateLegalMoves(array<array<char, 8>, 8> board, boo
                 } else {
                     generateLegalMovesPawn();
                 }
-            } else if (!white and isBlackPiece(piece)) {
+            } else if (!isWhite and isBlackPiece(piece)) {
                 if (piece == Black::KING) {
                     generateLegalMovesKing();
                 } else if (piece == Black::QUEEN) {

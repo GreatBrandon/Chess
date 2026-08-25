@@ -54,3 +54,14 @@ const std::array<std::array<char, 8>, 8> START_BOARD = {{
     { {'P', 'P', 'P', 'P', 'P', 'P', 'P', 'P'} },
     { {'R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'} }
 }};
+
+struct BoardState {
+    std::array<std::array<char, 8>, 8> board = START_BOARD;
+    bool isWhite = true;
+    bool whiteCanShortCastle = true;
+    bool whiteCanLongCastle = true;
+    bool blackCanShortCastle = true;
+    bool blackCanLongCastle = true;
+    int enPassantRow = -1;
+    int enPassantCol = -1;
+};

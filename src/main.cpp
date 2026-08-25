@@ -12,7 +12,6 @@
 
 int main () {
 	auto board = chessBoard();
-	board.displayBoard();
 
 	// Tell the window to use vsync and work on high DPI displays
 	SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_HIGHDPI);
@@ -46,7 +45,9 @@ int main () {
 	}
 	int selectedRect = -1;
 	int droppedRect = -1;
+	vector<pair<int, int>> validMoves;
 	
+	Rectangle newGameButton = Rectangle(700, 30, 130, 30);
 	// game loop
 	while (!WindowShouldClose())		// run the loop until the user presses ESCAPE or presses the Close button on the window
 	{
@@ -55,18 +56,20 @@ int main () {
 			for (int row = 0; row < 8; row++) {
 				for (int col = 0; col < 8; col++) {
 					if (CheckCollisionPointRec(mousePos, rects[row][col]) && 
-						((board.white && isWhitePiece(board.board[row][col]))
-						|| (board.black && isBlackPiece(board.board[row][col])))) {
+						((board.isWhite() && isWhitePiece(board.board[row][col]))
+						|| (board.isBlack() && isBlackPiece(board.board[row][col])))) {
 							selectedRect = row * 8 + col;
+							validMoves = board.getValidMovesFromPosition(row, col);
 					}
 				}
 			}
+			if (CheckCollisionPointRec(mousePos, newGameButton)) board.newGame();
 		} else if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
 			if (selectedRect != -1) {
 				Vector2 mousePos = GetMousePosition();
 				for (int row = 0; row < 8; row++) {
 					for (int col = 0; col < 8; col++) {
-						if (CheckCollisionPointRec(mousePos, rects[row][col]) && ((board.white && !isWhitePiece(board.board[row][col])) || (board.black && !isBlackPiece(board.board[row][col])))) {
+						if (CheckCollisionPointRec(mousePos, rects[row][col]) && ((board.isWhite() && !isWhitePiece(board.board[row][col])) || (board.isBlack() && !isBlackPiece(board.board[row][col])))) {
 							droppedRect = row * 8 + col;
 						}
 					}
@@ -112,13 +115,17 @@ int main () {
 		}
 
 		if (selectedRect != -1) {
+			for (auto const& [row, col] : validMoves) {
+				DrawCircle(rects[row][col].x + SIZE / 2, rects[row][col].y + SIZE / 2, 15, { 200, 200, 200, 80 });
+			}
+
 			Vector2 pos = GetMousePosition();
 			pos.x -= SIZE / 2;
 			pos.y -= SIZE / 2;
 			DrawTextureEx(pieces[b[selectedRect / 8][selectedRect % 8]], pos, 0, 0.5, WHITE);
 		}
 
-		const char* text = (board.white) ? "White" : "Black";
+		const char* text = (board.isWhite()) ? "White" : "Black";
 		DrawText(text, 700, 100, FONT_SIZE, WHITE);
 
 		const int coln = 700;
@@ -137,7 +144,9 @@ int main () {
 			}
 		}
 
-		// draw our texture to the screen
+		DrawRectangleRounded(newGameButton, 0.75, 0, GREEN);
+		DrawText("New Game", 710, 35, FONT_SIZE, WHITE);
+
 		DrawTexture(wabbit, 1000, 100, WHITE);
 		
 		// end the frame and get ready for the next one  (display frame, poll input, etc...)

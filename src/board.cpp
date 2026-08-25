@@ -3,10 +3,6 @@
 
 chessBoard::chessBoard() {
     newGame();
-}
-
-void chessBoard::newGame() {
-    board = START_BOARD;
 
     // for testing
     board = {
@@ -21,28 +17,15 @@ void chessBoard::newGame() {
         {{' ', 'K', ' ', ' ', ' ', ' ', ' ', ' '}}
     }
     };
-
-    moves.clear();
-    whiteCanLongCastle = true;
-    whiteCanShortCastle = true;
-    blackCanLongCastle = true;
-    blackCanShortCastle = true;
-    white = true;
-    black = false;
-    engine.generateLegalMoves(board, white);
+    legalMoves = engine.generateLegalMoves(board, boardState);
 }
 
-
-void chessBoard::displayBoard() {
-    cout << "    A B C D E F G H" << endl << "-----------------------" << endl;
-    for (int i = 0; i < 8; i++) {
-        cout << '|' << 8 - i << "| ";
-        for (int j = 0; j < 8; j++) {
-            cout << board[i][j] << ' ';
-        }
-        cout << "|" << 8 - i << '|' << endl;
-    }
-    cout << "-----------------------" << endl;
+void chessBoard::newGame() {
+    board = START_BOARD;
+    moves.clear();
+    boardState = BoardState();
+    previousMoves.clear();
+    legalMoves = engine.generateLegalMoves(board, boardState);
 }
 
 void chessBoard::playMove(int start, int end) {
@@ -50,185 +33,42 @@ void chessBoard::playMove(int start, int end) {
     const int sCol = start % 8;
     const int eRow = end / 8;
     const int eCol = end % 8;
-    bool shortCastled = false;
-    bool longCastled = false;
-    bool isPawn = (board[sRow][sCol] == White::PAWN || board[sRow][sCol] == Black::PAWN);
-    bool promoted = false;
 
-    if (isPawn) {
-        if (abs(sRow - eRow) > 2 || abs(sCol - eCol) > 1) return;
-        if ((white && eRow == sRow - 1) || (black && eRow == sRow + 1)) { // pawn moves by 1
-            if (abs(sCol - eCol) == 1) {
-                if (board[eRow][eCol] == ' ') {
-                    if (enPassantCol == eCol && ((white && sRow == 3) || (black && sRow == 4))) { // en passant valid
-                        board[sRow][eCol] = ' ';
-                        board[eRow][eCol] = 'x'; // so notation works fine
-                    } else {
-                        return;
-                    }
-                }
-            } else {
-                if (board[eRow][eCol] != ' ') return;
-            }
-        } else { // pawn moves by 2
-            if (board[eRow][eCol] != ' ' || abs(sCol - eCol) != 0 || (white && board[sRow - 1][sCol] != ' ') || (white && sRow != 6)
-                || (black && board[sRow + 1][eCol] != ' ') || (black && sRow != 1)) return;
-            enPassantCol = eCol;
-            canEnPassant = true;
-        }
-
-        if ((white && eRow == 0) || (black && eRow == 7)) {
-            promoted = true;
-        }
-    } else if (board[sRow][sCol] == White::ROOK || board[sRow][sCol] == Black::ROOK) {
-        if (sRow == eRow) {
-            int s = min(sCol, eCol);
-            int e = max(sCol, eCol);
-            if (!checkRow(sRow, s, e)) return;
-        } else if (sCol == eCol) {
-            int s = min(sRow, eRow);
-            int e = max(sRow, eRow);
-            if (!checkCol(sCol, s, e)) return;
-        } else {
+    for (auto const& [notation, move] : legalMoves) {
+        if (move.sRow == sRow && move.sCol == sCol && move.eRow == eRow && move.eCol == eCol) {
+            playMove(sRow, sCol, eRow, eCol);
+            // TODO pawn promotion
+            moves.push_back(notation);
+            changePlayer();
             return;
         }
-
-        // remove castling rights
-        if (white && sRow == 7) {
-            if (sCol == 0) whiteCanLongCastle = false;
-            else if (sCol == 7) whiteCanShortCastle = false;
-        } else if (black && sRow == 0) {
-            if (sCol == 0) blackCanLongCastle = false;
-            else if (sCol == 7) blackCanShortCastle = false;
-        }
-    } else if (board[sRow][sCol] == White::BISHOP || board[sRow][sCol] == Black::BISHOP) {
-        if (abs(sRow - eRow) == abs(sCol - eCol)) {
-            if (!checkDiagonal(sRow, sCol, eRow, eCol)) return;
-        } else {
-            return;
-        }
-    } else if (board[sRow][sCol] == White::QUEEN || board[sRow][sCol] == Black::QUEEN) {
-        if (sRow == eRow) {
-            int s = min(sCol, eCol);
-            int e = max(sCol, eCol);
-            if (!checkRow(sRow, s, e)) return;
-        } else if (sCol == eCol) {
-            int s = min(sRow, eRow);
-            int e = max(sRow, eRow);
-            if (!checkCol(sCol, s, e)) return;
-        } else if (abs(sRow - eRow) == abs(sCol - eCol)) {
-            if (!checkDiagonal(sRow, sCol, eRow, eCol)) return;
-        } else {
-            return;
-        }
-    } else if (board[sRow][sCol] == White::KNIGHT || board[sRow][sCol] == Black::KNIGHT) {
-        if (!((abs(sRow - eRow) == 2 && abs(sCol - eCol) == 1) || (abs(sRow - eRow) == 1 && abs(sCol - eCol) == 2))) return;
-    } else {
-        // king
-        if (white) {
-            if (whiteCanShortCastle && eRow == sRow && eCol == 6 && checkRow(7, 4, 7)) {
-                playMove(7, 7, 7, 5);
-                shortCastled = true;
-            } else if (whiteCanLongCastle && eRow == sRow && eCol == 2 && checkRow(7, 0, 4)) {
-                playMove(7, 0, 7, 3);
-                longCastled = true;
-            } else if (abs(sRow - eRow) > 1 || abs(sCol - eCol) > 1) return;
-            whiteCanLongCastle = false;
-            whiteCanShortCastle = false;
-        } else {
-            if (blackCanShortCastle && eRow == sRow && eCol == 6 && checkRow(0, 4, 7)) {
-                playMove(0, 7, 0, 5);
-                shortCastled = true;
-            } else if (blackCanLongCastle && eRow == sRow && eCol == 2 && checkRow(0, 0, 4)) {
-                playMove(0, 0, 0, 3);
-                longCastled = true;
-            } else if (abs(sRow - eRow) > 1 || abs(sCol - eCol) > 1) return;
-            blackCanLongCastle = false;
-            blackCanShortCastle = false;
-        }
     }
-
-    string move = string();
-
-    if (shortCastled) {
-        move = "O-O";
-    } else if (longCastled) {
-        move = "O-O-O";
-    } else {
-        if (!isPawn) {
-            move += toupper(board[sRow][sCol]);
-        }
-
-        if (board[eRow][eCol] != ' ') {
-            if (isPawn) {
-                move = move + (char)('a' + sCol) + 'x';
-            } else {
-                move += 'x';
-            }
-        }
-
-        move = move + (char)('a' + eCol) + (char)('8' - eRow);
-    }
-    playMove(sRow, sCol, eRow, eCol);
-
-    if (promoted) {
-        move += "=Q";
-        if (white) {
-            board[eRow][eCol] = White::QUEEN;
-        } else {
-            board[eRow][eCol] = Black::QUEEN;
-        }
-    }
-
-    moves.push_back(move);
-
-    changePlayer();
 }
 
 void chessBoard::playMove(int sRow, int sCol, int eRow, int eCol) {
     board[eRow][eCol] = board[sRow][sCol];
     board[sRow][sCol] = ' ';
-    if (!canEnPassant) enPassantCol = -1;
-    if (canEnPassant) canEnPassant = false;
 }
 
 void chessBoard::changePlayer() {
-    white = !white;
-    black = !black;
-    engine.generateLegalMoves(board, white);
+    boardState.isWhite = !boardState.isWhite;
+    legalMoves = engine.generateLegalMoves(board, boardState);
 }
 
-bool chessBoard::checkRow(int row, int s, int e) {
-    for (int i = s + 1; i < e; i++) {
-        if (board[row][i] != ' ') return false;
-    }
-    return true;
-}
-
-bool chessBoard::checkCol(int col, int s, int e) {
-    for (int i = s + 1; i < e; i++) {
-        if (board[i][col] != ' ') return false;
-    }
-    return true;
-}
-
-bool chessBoard::checkDiagonal(int sRow, int sCol, int eRow, int eCol) {
-    if (sCol > eCol) {
-        int temp = sRow;
-        sRow = eRow;
-        eRow = temp;
-        temp = sCol;
-        sCol = eCol;
-        eCol = temp;
-    }
-    if (sRow < eRow) {
-        for (int i = 1; i < eRow - sRow; i++) {
-            if (board[sRow + i][sCol + i] != ' ') return false;
-        }
-    } else {
-        for (int i = 1; i < sRow - eRow; i++) {
-            if (board[sRow - i][sCol + i] != ' ') return false;
+vector<pair<int, int>> chessBoard::getValidMovesFromPosition(int sRow, int sCol) {
+    vector<pair<int, int>> validMoves;
+    for (auto const& [notation, move] : legalMoves) {
+        if (move.sRow == sRow && move.sCol == sCol) {
+            validMoves.push_back({ move.eRow, move.eCol });
         }
     }
-    return true;
+    return validMoves;
+}
+
+bool chessBoard::isWhite() {
+    return boardState.isWhite;
+}
+
+bool chessBoard::isBlack() {
+    return !boardState.isWhite;
 }

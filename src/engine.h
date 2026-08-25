@@ -9,7 +9,7 @@ using namespace std;
 
 class Engine {
 public:
-	map<string, Move> generateLegalMoves(array<array<char, 8>, 8>, bool);
+	map<string, Move> generateLegalMoves(array<array<char, 8>, 8>, BoardState);
 	Engine();
 private:
 	array<array<char, 8>, 8> board = START_BOARD;
