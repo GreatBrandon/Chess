@@ -14,7 +14,7 @@ int main () {
 	auto board = chessBoard();
 
 	// Tell the window to use vsync and work on high DPI displays
-	SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_HIGHDPI);
+	SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_HIGHDPI | FLAG_WINDOW_ALWAYS_RUN);
 	// Create the window and OpenGL context
 	InitWindow(1280, 720, "Chess");
 
@@ -46,6 +46,7 @@ int main () {
 	int selectedRect = -1;
 	int droppedRect = -1;
 	vector<pair<int, int>> validMoves;
+	char promotionPiece = 'Q';
 	
 	Rectangle newGameButton = Rectangle(700, 30, 130, 30);
 	// game loop
@@ -75,13 +76,16 @@ int main () {
 					}
 				}
 				if (droppedRect != -1 && droppedRect != selectedRect) {
-					board.playMove(selectedRect, droppedRect);
+					board.playMove(selectedRect, droppedRect, promotionPiece);
 				}
 				droppedRect = -1;
 				selectedRect = -1;
 			}
 		}
-
+		if (IsKeyPressed(KEY_B)) promotionPiece = 'B';
+		else if (IsKeyDown(KEY_N)) promotionPiece = 'N';
+		else if (IsKeyDown(KEY_R)) promotionPiece = 'R';
+		else if (IsKeyDown(KEY_Q)) promotionPiece = 'Q';
 
 		// drawing
 		BeginDrawing();
@@ -146,6 +150,10 @@ int main () {
 
 		DrawRectangleRounded(newGameButton, 0.75, 0, GREEN);
 		DrawText("New Game", 710, 35, FONT_SIZE, WHITE);
+
+
+		DrawText(((string) "Next pawn promotes to: " + promotionPiece).c_str(), 710, 640, FONT_SIZE, WHITE);
+		DrawText("Press Q/R/N/B to change", 710, 670, FONT_SIZE, WHITE);
 
 		DrawTexture(wabbit, 1000, 100, WHITE);
 		

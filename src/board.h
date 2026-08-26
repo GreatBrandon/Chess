@@ -19,7 +19,7 @@ public:
 
 	chessBoard();
 	void newGame();
-	void playMove(int, int);
+	void playMove(int, int, char);
 	void changePlayer();
 	vector<pair<int, int>> getValidMovesFromPosition(int, int);
 	bool isWhite();

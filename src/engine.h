@@ -9,7 +9,7 @@ using namespace std;
 
 class Engine {
 public:
-	map<string, Move> generateLegalMoves(array<array<char, 8>, 8>, BoardState);
+	map<string, Move> generateLegalMoves(BoardState);
 	Engine();
 private:
 	array<array<char, 8>, 8> board = START_BOARD;
@@ -17,6 +17,7 @@ private:
 	bool isWhite = true;
 	int sRow = -1;
 	int sCol = -1;
+	BoardState boardState;
 	void generateLegalMovesRow();
 	void generateLegalMovesCol();
 	void generateLegalMovesDiagonal();

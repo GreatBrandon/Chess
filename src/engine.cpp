@@ -3,9 +3,10 @@
 
 Engine::Engine() {};
 
-map<string, Move> Engine::generateLegalMoves(array<array<char, 8>, 8> board, BoardState state) {
-    this->board = board;
+map<string, Move> Engine::generateLegalMoves(BoardState state) {
+    this->board = state.board;
     this->isWhite = state.isWhite;
+    this->boardState = state;
     legalMoves.clear();
 
     for (int row = 0; row < 8; row++) {
@@ -106,11 +107,25 @@ void Engine::generateLegalMovesKing() {
         {0, -1}, {0, 1},
         {1, -1}, {1, 0}, {1, 1},
     } });
-    // TODO castling
+    if (isWhite && sRow == 7 && sCol == 4) {
+        if (boardState.whiteCanLongCastle && board[7][1] == ' ' && board[7][2] == ' ' && board[7][3] == ' ') {
+            legalMoves["O-O-O"] = Move(sRow, sCol, sRow, 2);
+        }
+        if (boardState.whiteCanShortCastle && board[7][5] == ' ' && board[7][6] == ' ') {
+            legalMoves["O-O"] = Move(sRow, sCol, sRow, 6);
+        }
+    } else if (!isWhite && sRow == 0 && sCol == 4) {
+        if (boardState.blackCanLongCastle && board[0][1] == ' ' && board[0][2] == ' ' && board[0][3] == ' ') {
+            legalMoves["O-O-O"] = Move(sRow, sCol, sRow, 2);
+        }
+        if (boardState.blackCanShortCastle && board[0][5] == ' ' && board[0][6] == ' ') {
+            legalMoves["O-O"] = Move(sRow, sCol, sRow, 6);
+        }
+    }
+    // TODO check
 }
 
 void Engine::generateLegalMovesPawn() {
-    // TODO en passant
     if (isWhite) {
         if (board[sRow - 1][sCol] == ' ') {
             addMove(sRow - 1, sCol);
@@ -120,6 +135,7 @@ void Engine::generateLegalMovesPawn() {
         }
         if (sCol - 1 >= 0 && isBlackPiece(board[sRow - 1][sCol - 1])) addMove(sRow - 1, sCol - 1);
         if (sCol + 1 < 8 && isBlackPiece(board[sRow - 1][sCol + 1])) addMove(sRow - 1, sCol + 1);
+        if (abs(boardState.enPassantCol - sCol) == 1 && boardState.enPassantRow == sRow - 1) addMove(boardState.enPassantRow, boardState.enPassantCol);
     } else {
         if (board[sRow + 1][sCol] == ' ') {
             addMove(sRow + 1, sCol);
@@ -129,6 +145,8 @@ void Engine::generateLegalMovesPawn() {
         }
         if (sCol - 1 >= 0 && isWhitePiece(board[sRow + 1][sCol - 1])) addMove(sRow + 1, sCol - 1);
         if (sCol + 1 < 8 && isWhitePiece(board[sRow + 1][sCol + 1])) addMove(sRow + 1, sCol + 1);
+        if (abs(boardState.enPassantCol - sCol) == 1 && boardState.enPassantRow == sRow + 1) addMove(boardState.enPassantRow, boardState.enPassantCol);
+
     }
 }
 
@@ -151,7 +169,9 @@ bool Engine::addMove(int eRow, int eCol) {
         move += toupper(board[sRow][sCol]);
     }
 
-    if (board[eRow][eCol] != ' ') {
+    if (isPawn && board[eRow][eCol] == ' ' && abs(eCol - sCol) == 1) {
+        move = move + (char)('a' + sCol) + 'x';
+    } else if (board[eRow][eCol] != ' ') {
         if (isPawn) {
             move = move + (char)('a' + sCol) + 'x';
         } else {
