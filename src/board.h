@@ -4,7 +4,7 @@
 #include <array>
 #include <vector>
 #include <string>
-#include <map>
+#include <unordered_map>
 
 using namespace std;
 
@@ -13,7 +13,7 @@ public:
 	array<array<char, 8>, 8> board;
 	Engine engine = Engine();
 	vector<string> moves;
-	map<string, Move> legalMoves;
+	unordered_map<string, Move> legalMoves;
 	BoardState boardState;
 	vector<BoardState> previousMoves;
 
@@ -22,8 +22,8 @@ public:
 	void playMove(int, int, char);
 	void changePlayer();
 	vector<pair<int, int>> getValidMovesFromPosition(int, int);
-	bool isWhite();
-	bool isBlack();
+	bool isWhite() const;
+	bool isBlack() const;
 private:
 	void playMove(int, int, int, int);
 };

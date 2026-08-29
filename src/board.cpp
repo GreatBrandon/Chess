@@ -8,8 +8,8 @@ chessBoard::chessBoard() {
     board = {
     {
         {{' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '}},
+        {{'k', ' ', ' ', 'p', ' ', ' ', ' ', ' '}},
         {{' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '}},
-        {{' ', ' ', ' ', ' ', 'p', ' ', ' ', ' '}},
         {{' ', 'b', ' ', 'Q', 'R', ' ', ' ', ' '}},
         {{' ', ' ', 'p', ' ', ' ', 'p', ' ', 'p'}},
         {{' ', ' ', ' ', ' ', 'N', ' ', ' ', ' '}},
@@ -17,6 +17,16 @@ chessBoard::chessBoard() {
         {{' ', 'K', ' ', ' ', ' ', ' ', ' ', ' '}}
     }
     };
+    board = { {
+        { { 'r', ' ', ' ', ' ', 'k', ' ', ' ', 'r' } },
+        { {' ', ' ', 'P', ' ', ' ', ' ', ' ', ' '} },
+        { {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '} },
+        { {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '} },
+        { {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '} },
+        { {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '} },
+        { {' ', ' ', 'P', ' ', 'P', ' ', ' ', ' '} },
+        { {'R', ' ', 'P', 'K', 'P', ' ', ' ', 'R'} }
+    } };
     boardState.board = board;
     legalMoves = engine.generateLegalMoves(boardState);
 }
@@ -26,7 +36,8 @@ void chessBoard::newGame() {
     moves.clear();
     boardState = BoardState();
     previousMoves.clear();
-    legalMoves = engine.generateLegalMoves(boardState);
+    previousMoves.push_back(boardState);
+    //legalMoves = engine.generateLegalMoves(boardState);
 }
 
 void chessBoard::playMove(int start, int end, char promotionPiece) {
@@ -37,9 +48,7 @@ void chessBoard::playMove(int start, int end, char promotionPiece) {
 
     for (auto const& [notation, move] : legalMoves) {
         if (move.sRow == sRow && move.sCol == sCol && move.eRow == eRow && move.eCol == eCol) {
-            if (notation.find('=') != string::npos) {
-                if (notation[notation.find('=') + 1] != promotionPiece) continue;
-            }
+            if (notation.find('=') != string::npos && notation[notation.find('=') + 1] != promotionPiece) continue;
             // Remove castling rights
             if (board[sRow][sCol] == White::KING) {
                 boardState.whiteCanLongCastle = false;
@@ -89,13 +98,14 @@ void chessBoard::playMove(int start, int end, char promotionPiece) {
             }
 
             // Castle
-            if (notation.starts_with("O-O")) {
-                playMove(sRow, 7, sRow, 5);
-            } else if (notation.starts_with("O-O-O")) {
+            if (notation.starts_with("O-O-O")) {
                 playMove(sRow, 0, sRow, 3);
+            } else if (notation.starts_with("O-O")) {
+                playMove(sRow, 7, sRow, 5);
             }
 
             moves.push_back(notation);
+            previousMoves.push_back(boardState);
             changePlayer();
             return;
         }
@@ -123,10 +133,10 @@ vector<pair<int, int>> chessBoard::getValidMovesFromPosition(int sRow, int sCol)
     return validMoves;
 }
 
-bool chessBoard::isWhite() {
+bool chessBoard::isWhite() const {
     return boardState.isWhite;
 }
 
-bool chessBoard::isBlack() {
+bool chessBoard::isBlack() const {
     return !boardState.isWhite;
 }

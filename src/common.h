@@ -64,4 +64,5 @@ struct BoardState {
     bool blackCanLongCastle = true;
     int enPassantRow = -1;
     int enPassantCol = -1;
+    bool isInCheck = false;
 };

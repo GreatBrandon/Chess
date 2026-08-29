@@ -1,13 +1,39 @@
 #include "engine.h"
 #include <iostream>
 
+const array<pair<int, int>, 8> knightOffsets = { {
+    {-2, -1}, {-2, 1},
+    {-1, -2}, {-1, 2},
+    {1, -2}, {1, 2},
+    {2, -1}, {2, 1}
+} };
+
 Engine::Engine() {};
 
-map<string, Move> Engine::generateLegalMoves(BoardState state) {
+unordered_map<string, Move> Engine::generateLegalMoves(BoardState state, bool checkingMode) {
     this->board = state.board;
     this->isWhite = state.isWhite;
     this->boardState = state;
+    this->checkingMode = checkingMode;
     legalMoves.clear();
+
+    for (int row = 0; row < 8; row++) {
+        for (int col = 0; col < 8; col++) {
+            if (board[row][col] == White::KING) {
+                if (isWhite) {
+                    kingPos = { row,col };
+                } else {
+                    opponentKingPos = { row,col };
+                }
+            } else if (board[row][col] == Black::KING) {
+                if (!isWhite) {
+                    kingPos = { row,col };
+                } else {
+                    opponentKingPos = { row,col };
+                }
+            }
+        }
+    }
 
     for (int row = 0; row < 8; row++) {
         for (int col = 0; col < 8; col++) {
@@ -51,6 +77,11 @@ map<string, Move> Engine::generateLegalMoves(BoardState state) {
             }
         }
     }
+    if (isWhite) {
+        cout << "White to move" << endl;
+    } else {
+        cout << "Black to move" << endl;
+    }
     for (auto const& [notation, move] : legalMoves) {
         std::cout << notation << ':' << move.sRow << ',' << move.sCol << ',' << move.eRow << ',' << move.eCol << std::endl;
     }
@@ -93,12 +124,7 @@ void Engine::generateLegalMovesDiagonal() {
 }
 
 void Engine::generateLegalMovesKnight() {
-    generateLegalMovesUsingOffsets({ {
-        {-2, -1}, {-2, 1},
-        {-1, -2}, {-1, 2},
-        {1, -2}, {1, 2},
-        {2, -1}, {2, 1}
-    } });
+    generateLegalMovesUsingOffsets(knightOffsets);
 }
 
 void Engine::generateLegalMovesKing() {
@@ -107,22 +133,68 @@ void Engine::generateLegalMovesKing() {
         {0, -1}, {0, 1},
         {1, -1}, {1, 0}, {1, 1},
     } });
-    if (isWhite && sRow == 7 && sCol == 4) {
+
+    bool shortCastled = false;
+    bool longCastled = false;
+
+    if (isWhite && sRow == 7 && sCol == 4 && !boardState.isInCheck) {
         if (boardState.whiteCanLongCastle && board[7][1] == ' ' && board[7][2] == ' ' && board[7][3] == ' ') {
-            legalMoves["O-O-O"] = Move(sRow, sCol, sRow, 2);
+            longCastled = true;
         }
         if (boardState.whiteCanShortCastle && board[7][5] == ' ' && board[7][6] == ' ') {
-            legalMoves["O-O"] = Move(sRow, sCol, sRow, 6);
+            shortCastled = true;
         }
-    } else if (!isWhite && sRow == 0 && sCol == 4) {
+    } else if (!isWhite && sRow == 0 && sCol == 4 && !boardState.isInCheck) {
         if (boardState.blackCanLongCastle && board[0][1] == ' ' && board[0][2] == ' ' && board[0][3] == ' ') {
-            legalMoves["O-O-O"] = Move(sRow, sCol, sRow, 2);
+            longCastled = true;
         }
         if (boardState.blackCanShortCastle && board[0][5] == ' ' && board[0][6] == ' ') {
-            legalMoves["O-O"] = Move(sRow, sCol, sRow, 6);
+            shortCastled = true;
         }
     }
-    // TODO check
+
+    string move = string();
+    array<array<char, 8>, 8> tempBoard = board;
+    bool isCheck = false;
+
+    if (shortCastled) {
+        tempBoard = board;
+        tempBoard[sRow][6] = tempBoard[sRow][sCol];
+        tempBoard[sRow][sCol] = ' ';
+        tempBoard[sRow][5] = tempBoard[sRow][0];
+        tempBoard[sRow][7] = ' ';
+        move = "O-O";
+
+        if (isOppositeKingChecked(tempBoard, sRow, 5)) {
+            move += "+";
+        }
+
+        legalMoves[move] = Move(sRow, sCol, sRow, 6);
+    }
+    if (longCastled) {
+        tempBoard = board;
+        tempBoard[sRow][2] = tempBoard[sRow][sCol];
+        tempBoard[sRow][sCol] = ' ';
+        tempBoard[sRow][3] = tempBoard[sRow][0];
+        tempBoard[sRow][0] = ' ';
+        move = "O-O-O";
+
+        if (isOppositeKingChecked(tempBoard, sRow, 3)) {
+            auto tempState = boardState;
+            tempState.isInCheck = true;
+            tempState.isWhite = !boardState.isWhite;
+            tempState.board = tempBoard;
+
+            move += '+';
+            //if (!checkingMode && Engine::generateLegalMoves(tempState, true).size() == 0) {
+            //    move += '#';
+            //} else {
+            //    move += '+';
+            //}
+        }
+
+        legalMoves[move] = Move(sRow, sCol, sRow, 2);
+    }
 }
 
 void Engine::generateLegalMovesPawn() {
@@ -181,15 +253,23 @@ bool Engine::addMove(int eRow, int eCol) {
 
     move = move + (char)('a' + eCol) + (char)('8' - eRow);
 
+    array<array<char, 8>, 8> tempBoard = board;
+
+
     if (isPawn && ((isWhite && eRow == 0) || (!isWhite && eRow == 7))) {
         array<string, 4> promotionMoves = { {
             move + "=Q", move + "=B", move + "=N", move + "=R"
             } };
         for (auto& m : promotionMoves) {
+            if (isWhite) tempBoard[eRow][eCol] = m.back();
+            else tempBoard[eRow][eCol] = m.back() + 0x20;
+            tempBoard[sRow][sCol] = ' ';
+
             bool conflict = legalMoves.find(m) != legalMoves.end();
             if (conflict) {
-                cout << "Disambiguate move: " << m << endl;
+                cout << "Disambiguate move: " << m << endl; // TODO
             } else {
+                if (isOppositeKingChecked(tempBoard, eRow, eCol)) m += '+';
                 legalMoves[m] = Move(sRow, sCol, eRow, eCol);
             }
         }
@@ -198,11 +278,57 @@ bool Engine::addMove(int eRow, int eCol) {
 
     bool conflict = legalMoves.find(move) != legalMoves.end();
     if (conflict) {
-        cout << "Disambiguate move: " << move << endl;
+        cout << "Disambiguate move: " << move << endl; //TODO
     } else {
+        if (isOppositeKingChecked(tempBoard, eRow, eCol)) {
+            move += "+";
+            // TODO MATE
+        }
         legalMoves[move] = Move(sRow, sCol, eRow, eCol);
     }
-    // TODO check
     if (end != ' ') return true;
+    return false;
+}
+
+bool Engine::isOppositeKingChecked(array<array<char, 8>, 8> board, int row, int col) {
+    char piece = board[row][col];
+    if ((isWhite && (piece == White::ROOK || piece == White::QUEEN)) || (!isWhite && (piece == Black::ROOK || piece == Black::QUEEN))) {
+        if (row == opponentKingPos.first) {
+            int s = min(col, opponentKingPos.second) + 1;
+            int e = max(col, opponentKingPos.second);
+            while (s < e) {
+                if (board[row][s] != ' ') return false;
+                s++;
+            }
+            return true;
+        } else if (col == opponentKingPos.second) {
+            int s = min(row, opponentKingPos.first) + 1;
+            int e = max(row, opponentKingPos.first);
+            while (s < e) {
+                if (board[s][col] != ' ') return false;
+                s++;
+            }
+            return true;
+        }
+    }
+    if ((isWhite && (piece == White::BISHOP || piece == White::QUEEN)) || (!isWhite && (piece == Black::BISHOP || piece == Black::QUEEN))) {
+        if (abs(row - opponentKingPos.first) == abs(col - opponentKingPos.second)) {
+            int s = min(row, opponentKingPos.first) + 1;
+            int e = max(row, opponentKingPos.first);
+            int c = min(col, opponentKingPos.second) + 1;
+            while (s < e) {
+                if (board[s][c] != ' ') return false;
+                s++;
+                c++;
+            }
+            return true;
+        }
+    }
+    if ((isWhite && piece == White::KNIGHT) || (!isWhite && piece == Black::KNIGHT)) {
+        for (auto const& [r, c] : knightOffsets) {
+            if (row + r == opponentKingPos.first && col + c == opponentKingPos.second) return true;
+        }
+    }
+    if ((isWhite && piece == White::PAWN && ((col - 1 >= 0 && board[row - 1][col - 1] == Black::KING) || (col + 1 < 8 && board[row - 1][col + 1] == Black::KING))) || (!isWhite && piece == Black::PAWN && ((col - 1 >= 0 && board[row + 1][col - 1] == White::KING) || (col + 1 < 8 && board[row + 1][col + 1] == White::KING)))) return true;
     return false;
 }
