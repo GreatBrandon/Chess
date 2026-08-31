@@ -19,7 +19,7 @@ int main () {
 	InitWindow(1280, 720, "Chess");
 
 	// Utility function from resource_dir.h to find the resources folder and set it as the current working directory so we can load from it
-	SearchAndSetResourceDir("resources");
+	SearchAndSetResourceDir("resources"); //
 
 	// Load a texture from the resources directory
 	Texture wabbit = LoadTexture("wabbit_alpha.png");
@@ -154,6 +154,12 @@ int main () {
 
 		DrawText(((string) "Next pawn promotes to: " + promotionPiece).c_str(), 710, 640, FONT_SIZE, WHITE);
 		DrawText("Press Q/R/N/B to change", 710, 670, FONT_SIZE, WHITE);
+
+		if (board.isDraw) {
+			DrawText("Draw", 400, 400, FONT_SIZE*4, WHITE);
+		} else if (board.isCheckmate) {
+			DrawText("Checkmate", 400, 400, FONT_SIZE*4, WHITE);
+		}
 
 		DrawTexture(wabbit, 1000, 100, WHITE);
 		

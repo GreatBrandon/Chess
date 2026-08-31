@@ -16,6 +16,9 @@ public:
 	unordered_map<string, Move> legalMoves;
 	BoardState boardState;
 	vector<BoardState> previousMoves;
+	bool isDraw = false;
+	bool isCheckmate = false;
+	int lastIrreversibleMove = 0;
 
 	chessBoard();
 	void newGame();

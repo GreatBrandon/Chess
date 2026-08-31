@@ -1,34 +1,37 @@
 #include "board.h"
 #include <iostream>
+#include <map>
 
 chessBoard::chessBoard() {
     newGame();
 
     // for testing
-    board = {
-    {
-        {{' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '}},
-        {{'k', ' ', ' ', 'p', ' ', ' ', ' ', ' '}},
-        {{' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '}},
-        {{' ', 'b', ' ', 'Q', 'R', ' ', ' ', ' '}},
-        {{' ', ' ', 'p', ' ', ' ', 'p', ' ', 'p'}},
-        {{' ', ' ', ' ', ' ', 'N', ' ', ' ', ' '}},
-        {{' ', ' ', ' ', ' ', ' ', ' ', 'P', ' '}},
-        {{' ', 'K', ' ', ' ', ' ', ' ', ' ', ' '}}
-    }
-    };
-    board = { {
-        { { 'r', ' ', ' ', ' ', 'k', ' ', ' ', 'r' } },
-        { {' ', ' ', 'P', ' ', ' ', ' ', ' ', ' '} },
-        { {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '} },
-        { {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '} },
-        { {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '} },
-        { {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '} },
-        { {' ', ' ', 'P', ' ', 'P', ' ', ' ', ' '} },
-        { {'R', ' ', 'P', 'K', 'P', ' ', ' ', 'R'} }
-    } };
-    boardState.board = board;
-    legalMoves = engine.generateLegalMoves(boardState);
+    //board = {
+    //{
+    //    {{' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '}},
+    //    {{'k', ' ', ' ', 'p', ' ', ' ', ' ', ' '}},
+    //    {{' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '}},
+    //    {{' ', 'b', ' ', 'Q', 'R', ' ', ' ', ' '}},
+    //    {{' ', ' ', 'p', ' ', ' ', 'p', ' ', 'p'}},
+    //    {{' ', ' ', ' ', ' ', 'N', ' ', ' ', ' '}},
+    //    {{' ', ' ', ' ', ' ', ' ', ' ', 'P', ' '}},
+    //    {{' ', 'K', ' ', ' ', ' ', ' ', ' ', ' '}}
+    //}
+    //};
+    //board = { {
+    //    { { 'r', ' ', ' ', ' ', 'k', ' ', ' ', 'r' } },
+    //    { {' ', ' ', 'P', ' ', ' ', ' ', ' ', ' '} },
+    //    { {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '} },
+    //    { {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '} },
+    //    { {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '} },
+    //    { {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '} },
+    //    { {' ', ' ', 'P', ' ', 'P', ' ', ' ', ' '} },
+    //    { {'R', ' ', 'P', 'K', 'P', ' ', ' ', 'R'} }
+    //} };
+    //boardState.board = board;
+    //previousMoves.clear();
+    //previousMoves.push_back(boardState);
+    //legalMoves = engine.generateLegalMoves(boardState);
 }
 
 void chessBoard::newGame() {
@@ -37,7 +40,10 @@ void chessBoard::newGame() {
     boardState = BoardState();
     previousMoves.clear();
     previousMoves.push_back(boardState);
-    //legalMoves = engine.generateLegalMoves(boardState);
+    isDraw = false;
+    isCheckmate = false;
+    lastIrreversibleMove = 0;
+    legalMoves = engine.generateLegalMoves(boardState);
 }
 
 void chessBoard::playMove(int start, int end, char promotionPiece) {
@@ -49,6 +55,13 @@ void chessBoard::playMove(int start, int end, char promotionPiece) {
     for (auto const& [notation, move] : legalMoves) {
         if (move.sRow == sRow && move.sCol == sCol && move.eRow == eRow && move.eCol == eCol) {
             if (notation.find('=') != string::npos && notation[notation.find('=') + 1] != promotionPiece) continue;
+
+            // 50 move rule
+            if (board[eRow][eCol] != ' ' || board[sRow][sCol] == White::PAWN || board[sRow][sCol] == Black::PAWN) {
+                boardState.stalemateMoveCounter = 0;
+                lastIrreversibleMove = previousMoves.size();
+            } else boardState.stalemateMoveCounter++;
+
             // Remove castling rights
             if (board[sRow][sCol] == White::KING) {
                 boardState.whiteCanLongCastle = false;
@@ -106,6 +119,21 @@ void chessBoard::playMove(int start, int end, char promotionPiece) {
 
             moves.push_back(notation);
             previousMoves.push_back(boardState);
+
+            // Check stalemate
+            if (boardState.stalemateMoveCounter == 100) {
+                cout << "DRAW BY 50 MOVE RULE" << endl;
+                isDraw = true;
+            }
+            map<array<array<char, 8>, 8>, int> previousPositions;
+            for (int i = lastIrreversibleMove; i < previousMoves.size(); i++) {
+                if (++previousPositions[previousMoves[i].board] == 3) {
+                    cout << "DRAW BY REPETITION" << endl;
+                    isDraw = true;
+                    // TODO add castling and en passant checks to this to fully satisfy FIDE rules
+                }
+            }
+
             changePlayer();
             return;
         }
@@ -121,6 +149,17 @@ void chessBoard::playMove(int sRow, int sCol, int eRow, int eCol) {
 void chessBoard::changePlayer() {
     boardState.isWhite = !boardState.isWhite;
     legalMoves = engine.generateLegalMoves(boardState);
+    if (legalMoves.size() == 0) {
+        if (boardState.isInCheck) {
+            cout << "CHECKMATE" << endl;
+            isCheckmate = true;
+        } else {
+            cout << "DRAW BY STALEMATE" << endl;
+            isDraw = true;
+        }
+    } else if (isDraw) {
+        legalMoves.clear();
+    }
 }
 
 vector<pair<int, int>> chessBoard::getValidMovesFromPosition(int sRow, int sCol) {

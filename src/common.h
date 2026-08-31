@@ -65,4 +65,5 @@ struct BoardState {
     int enPassantRow = -1;
     int enPassantCol = -1;
     bool isInCheck = false;
+    int stalemateMoveCounter = 0;
 };
