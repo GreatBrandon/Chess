@@ -1,5 +1,7 @@
 #pragma once
 #include <array>
+#include <unordered_map>
+#include <string>
 
 namespace White {
     constexpr char KING = 'K',
@@ -62,8 +64,9 @@ struct BoardState {
     bool whiteCanLongCastle = true;
     bool blackCanShortCastle = true;
     bool blackCanLongCastle = true;
+    bool isInCheck = false;
     int enPassantRow = -1;
     int enPassantCol = -1;
-    bool isInCheck = false;
     int stalemateMoveCounter = 0;
+    std::unordered_map<std::string, Move> legalMoves;
 };

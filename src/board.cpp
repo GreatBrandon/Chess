@@ -18,32 +18,32 @@ chessBoard::chessBoard() {
     //    {{' ', 'K', ' ', ' ', ' ', ' ', ' ', ' '}}
     //}
     //};
-    //board = { {
-    //    { { 'r', ' ', ' ', ' ', 'k', ' ', ' ', 'r' } },
-    //    { {' ', ' ', 'P', ' ', ' ', ' ', ' ', ' '} },
-    //    { {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '} },
-    //    { {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '} },
-    //    { {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '} },
-    //    { {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '} },
-    //    { {' ', ' ', 'P', ' ', 'P', ' ', ' ', ' '} },
-    //    { {'R', ' ', 'P', 'K', 'P', ' ', ' ', 'R'} }
-    //} };
-    //boardState.board = board;
-    //previousMoves.clear();
-    //previousMoves.push_back(boardState);
-    //legalMoves = engine.generateLegalMoves(boardState);
+    board = { {
+        { { 'r', ' ', ' ', ' ', 'k', ' ', ' ', 'r' } },
+        { {' ', ' ', 'P', ' ', ' ', ' ', ' ', ' '} },
+        { {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '} },
+        { {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '} },
+        { {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '} },
+        { {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '} },
+        { {' ', ' ', 'P', ' ', 'P', ' ', ' ', ' '} },
+        { {'R', ' ', 'P', 'K', 'P', ' ', ' ', 'R'} }
+    } };
+    boardState.board = board;
+    previousMoves.clear();
+    previousMoves.push_back(boardState);
+    boardState.legalMoves = engine.generateLegalMoves(boardState);
 }
 
 void chessBoard::newGame() {
     board = START_BOARD;
     moves.clear();
     boardState = BoardState();
-    previousMoves.clear();
-    previousMoves.push_back(boardState);
     isDraw = false;
     isCheckmate = false;
     lastIrreversibleMove = 0;
-    legalMoves = engine.generateLegalMoves(boardState);
+    boardState.legalMoves = engine.generateLegalMoves(boardState);
+    previousMoves.clear();
+    previousMoves.push_back(boardState);
 }
 
 void chessBoard::playMove(int start, int end, char promotionPiece) {
@@ -52,7 +52,7 @@ void chessBoard::playMove(int start, int end, char promotionPiece) {
     const int eRow = end / 8;
     const int eCol = end % 8;
 
-    for (auto const& [notation, move] : legalMoves) {
+    for (auto const& [notation, move] : boardState.legalMoves) {
         if (move.sRow == sRow && move.sCol == sCol && move.eRow == eRow && move.eCol == eCol) {
             if (notation.find('=') != string::npos && notation[notation.find('=') + 1] != promotionPiece) continue;
 
@@ -148,8 +148,9 @@ void chessBoard::playMove(int sRow, int sCol, int eRow, int eCol) {
 
 void chessBoard::changePlayer() {
     boardState.isWhite = !boardState.isWhite;
-    legalMoves = engine.generateLegalMoves(boardState);
-    if (legalMoves.size() == 0) {
+    boardState.legalMoves = engine.generateLegalMoves(boardState);
+    //legalMoves = engine.generateLegalMoves(boardState);
+    if (boardState.legalMoves.size() == 0) {
         if (boardState.isInCheck) {
             cout << "CHECKMATE" << endl;
             isCheckmate = true;
@@ -158,13 +159,13 @@ void chessBoard::changePlayer() {
             isDraw = true;
         }
     } else if (isDraw) {
-        legalMoves.clear();
+        boardState.legalMoves.clear();
     }
 }
 
 vector<pair<int, int>> chessBoard::getValidMovesFromPosition(int sRow, int sCol) {
     vector<pair<int, int>> validMoves;
-    for (auto const& [notation, move] : legalMoves) {
+    for (auto const& [notation, move] : boardState.legalMoves) {
         if (move.sRow == sRow && move.sCol == sCol) {
             validMoves.push_back({ move.eRow, move.eCol });
         }

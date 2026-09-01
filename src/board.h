@@ -13,7 +13,6 @@ public:
 	array<array<char, 8>, 8> board;
 	Engine engine = Engine();
 	vector<string> moves;
-	unordered_map<string, Move> legalMoves;
 	BoardState boardState;
 	vector<BoardState> previousMoves;
 	bool isDraw = false;
