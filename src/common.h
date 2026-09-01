@@ -26,6 +26,13 @@ struct Move {
     int sCol;
     int eRow;
     int eCol;
+
+    bool operator==(const Move& other) const {
+        return sRow == other.sRow 
+            && sCol == other.sCol 
+            && eRow == other.eRow 
+            && eCol == other.eCol;
+    }
 };
 
 inline bool isWhitePiece(char piece) {

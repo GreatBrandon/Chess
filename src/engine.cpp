@@ -8,10 +8,13 @@ const array<pair<int, int>, 8> knightOffsets = { {
     {2, -1}, {2, 1}
 } };
 
-Engine::Engine() {};
+Engine::Engine() {
+    this->ambigiousMoves.reserve(8);
+};
 
 unordered_map<string, Move> Engine::generateLegalMoves(BoardState state, bool checkingMode) {
     state.legalMoves.clear();
+    ambigiousMoves.clear();
 
     for (int row = 0; row < 8; row++) {
         for (int col = 0; col < 8; col++) {
@@ -73,6 +76,8 @@ unordered_map<string, Move> Engine::generateLegalMoves(BoardState state, bool ch
             }
         }
     }
+
+    disambiguateMoves(state);
     if (state.isWhite) {
         cout << "White to move" << endl;
     } else {
@@ -251,7 +256,6 @@ bool Engine::addMove(BoardState& state, int eRow, int eCol) {
 
     array<array<char, 8>, 8> tempBoard = state.board;
 
-
     if (isPawn && ((state.isWhite && eRow == 0) || (!state.isWhite && eRow == 7))) {
         array<string, 4> promotionMoves = { {
             move + "=Q", move + "=B", move + "=N", move + "=R"
@@ -261,27 +265,28 @@ bool Engine::addMove(BoardState& state, int eRow, int eCol) {
             else tempBoard[eRow][eCol] = m.back() + 0x20;
             tempBoard[sRow][sCol] = ' ';
 
-            bool conflict = state.legalMoves.find(m) != state.legalMoves.end();
-            if (conflict) {
-                cout << "Disambiguate move: " << m << endl; // TODO
-            } else {
-                if (isOppositeKingChecked(state, tempBoard, eRow, eCol)) m += '+';
-                state.legalMoves[m] = Move(sRow, sCol, eRow, eCol);
-            }
+            if (isOppositeKingChecked(state, tempBoard, eRow, eCol)) m += '+';
+            // TODO PROMOTION MATE
+            state.legalMoves[m] = Move(sRow, sCol, eRow, eCol);
         }
         return false;
     }
 
-    bool conflict = state.legalMoves.find(move) != state.legalMoves.end();
-    if (conflict) {
-        cout << "Disambiguate move: " << move << endl; //TODO
-    } else {
-        if (isOppositeKingChecked(state, tempBoard, eRow, eCol)) {
-            move += "+";
-            // TODO MATE
-        }
-        state.legalMoves[move] = Move(sRow, sCol, eRow, eCol);
+    if (isOppositeKingChecked(state, tempBoard, eRow, eCol)) {
+        move += "+";
+        // TODO MATE
     }
+
+    if (state.legalMoves.contains(move)) {
+        cout << "Disambiguate move: " << move << endl;
+        if (!ambigiousMoves.contains(move)) {
+            cout << "Disambiguate original move: " << move << endl;
+            ambigiousMoves[move].push_back(state.legalMoves[move]);
+        } 
+        ambigiousMoves[move].push_back(Move(sRow, sCol, eRow, eCol));
+    }
+    state.legalMoves[move] = Move(sRow, sCol, eRow, eCol);
+
     if (end != ' ') return true;
     return false;
 }
@@ -327,4 +332,38 @@ bool Engine::isOppositeKingChecked(BoardState& state, array<array<char, 8>, 8> b
     }
     if ((state.isWhite && piece == White::PAWN && ((col - 1 >= 0 && board[row - 1][col - 1] == Black::KING) || (col + 1 < 8 && board[row - 1][col + 1] == Black::KING))) || (!state.isWhite && piece == Black::PAWN && ((col - 1 >= 0 && board[row + 1][col - 1] == White::KING) || (col + 1 < 8 && board[row + 1][col + 1] == White::KING)))) return true;
     return false;
+}
+
+void Engine::disambiguateMoves(BoardState& state) {
+    for (auto const&[notation, moves] : ambigiousMoves) {
+        state.legalMoves.erase(notation);
+
+        for (const Move& move : moves) {
+            bool fileUnique = true;
+            bool rankUnique = true;
+
+            for (const Move& other : moves) {
+                if (&move == &other) continue;
+                if (move.sCol == other.sCol) fileUnique = false;
+                if (move.sRow == other.sRow) rankUnique = false;
+            }
+
+            string newNotation = notation;
+
+            if (fileUnique) {
+                // Use file: Rae1
+                newNotation.insert(1, 1, (char)('a' + move.sCol));
+            } else if (rankUnique) {
+                // Use rank: R3e1
+                newNotation.insert(1, 1, (char)('8' - move.sRow));
+            } else {
+                // Need both: Ra3e1
+                newNotation.insert(1, 1, (char)('a' + move.sCol));
+                newNotation.insert(2, 1, (char)('8' - move.sRow));
+            }
+
+            state.legalMoves[newNotation] = move;
+        }
+    }
+    ambigiousMoves.clear();
 }
