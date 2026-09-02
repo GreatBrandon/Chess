@@ -18,20 +18,20 @@ chessBoard::chessBoard() {
     //    {{' ', 'K', ' ', ' ', ' ', ' ', ' ', ' '}}
     //}
     //};
-    board = { {
-        { { 'r', 'r', ' ', ' ', 'k', ' ', ' ', 'r' } },
-        { {'P', ' ', 'P', ' ', ' ', ' ', ' ', ' '} },
-        { {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '} },
-        { {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '} },
-        { {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '} },
-        { {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '} },
-        { {' ', ' ', 'P', ' ', 'P', ' ', ' ', ' '} },
-        { {'R', ' ', 'P', 'K', 'P', ' ', ' ', 'R'} }
-    } };
-    boardState.board = board;
-    previousMoves.clear();
-    previousMoves.push_back(boardState);
-    boardState.legalMoves = engine.generateLegalMoves(boardState);
+    //board = { {
+    //    { { 'r', 'r', ' ', ' ', 'k', ' ', ' ', 'r' } },
+    //    { {'P', ' ', 'P', ' ', ' ', ' ', ' ', ' '} },
+    //    { {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '} },
+    //    { {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '} },
+    //    { {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '} },
+    //    { {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '} },
+    //    { {' ', ' ', 'P', ' ', 'P', ' ', ' ', ' '} },
+    //    { {'R', ' ', 'P', 'K', 'P', ' ', ' ', 'R'} }
+    //} };
+    //boardState.board = board;
+    //previousMoves.clear();
+    //previousMoves.push_back(boardState);
+    //boardState.legalMoves = engine.generateLegalMoves(boardState);
 }
 
 void chessBoard::newGame() {

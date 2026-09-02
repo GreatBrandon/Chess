@@ -14,25 +14,7 @@ Engine::Engine() {
 
 unordered_map<string, Move> Engine::generateLegalMoves(BoardState state, bool checkingMode) {
     state.legalMoves.clear();
-    ambigiousMoves.clear();
-
-    for (int row = 0; row < 8; row++) {
-        for (int col = 0; col < 8; col++) {
-            if (state.board[row][col] == White::KING) {
-                if (state.isWhite) {
-                    kingPos = { row,col };
-                } else {
-                    opponentKingPos = { row,col };
-                }
-            } else if (state.board[row][col] == Black::KING) {
-                if (!state.isWhite) {
-                    kingPos = { row,col };
-                } else {
-                    opponentKingPos = { row,col };
-                }
-            }
-        }
-    }
+    ambigiousMoves.clear(); // TODO possibly being overwritten when evaluating mate
 
     for (int row = 0; row < 8; row++) {
         for (int col = 0; col < 8; col++) {
@@ -90,7 +72,6 @@ unordered_map<string, Move> Engine::generateLegalMoves(BoardState state, bool ch
     return state.legalMoves;
 }
 
-// TODO add check and mate for all below
 void Engine::generateLegalMovesRow(BoardState& state) {
     for (int i = sCol + 1; i < 8; i++) {
         if (addMove(state, sRow, i)) break;
@@ -138,18 +119,20 @@ void Engine::generateLegalMovesKing(BoardState& state) {
     bool shortCastled = false;
     bool longCastled = false;
 
-    if (state.isWhite && sRow == 7 && sCol == 4 && !boardState.isInCheck) {
-        if (boardState.whiteCanLongCastle && state.board[7][1] == ' ' && state.board[7][2] == ' ' && state.board[7][3] == ' ') {
+    // TODO PREVENT CASTLING WHEN CHECKED
+
+    if (state.isWhite && sRow == 7 && sCol == 4 && !state.isInCheck) {
+        if (state.whiteCanLongCastle && state.board[7][1] == ' ' && state.board[7][2] == ' ' && state.board[7][3] == ' ') {
             longCastled = true;
         }
-        if (boardState.whiteCanShortCastle && state.board[7][5] == ' ' && state.board[7][6] == ' ') {
+        if (state.whiteCanShortCastle && state.board[7][5] == ' ' && state.board[7][6] == ' ') {
             shortCastled = true;
         }
-    } else if (!state.isWhite && sRow == 0 && sCol == 4 && !boardState.isInCheck) {
-        if (boardState.blackCanLongCastle && state.board[0][1] == ' ' && state.board[0][2] == ' ' && state.board[0][3] == ' ') {
+    } else if (!state.isWhite && sRow == 0 && sCol == 4 && !state.isInCheck) {
+        if (state.blackCanLongCastle && state.board[0][1] == ' ' && state.board[0][2] == ' ' && state.board[0][3] == ' ') {
             longCastled = true;
         }
-        if (boardState.blackCanShortCastle && state.board[0][5] == ' ' && state.board[0][6] == ' ') {
+        if (state.blackCanShortCastle && state.board[0][5] == ' ' && state.board[0][6] == ' ') {
             shortCastled = true;
         }
     }
@@ -166,11 +149,16 @@ void Engine::generateLegalMovesKing(BoardState& state) {
         tempBoard[sRow][7] = ' ';
         move = "O-O";
 
-        if (isOppositeKingChecked(state, tempBoard, sRow, 5)) {
-            move += "+";
+        if (!isKingInCheck(tempBoard, state.isWhite, true)) {
+            if (isKingInCheck(tempBoard, state.isWhite, false)) {
+                move += '+';
+                // TODO MATE
+                // TODO PREVENT CASTLE THROUGH CHECK
+            }
+
+            state.legalMoves[move] = Move(sRow, sCol, sRow, 6);
         }
 
-        state.legalMoves[move] = Move(sRow, sCol, sRow, 6);
     }
     if (longCastled) {
         tempBoard = state.board;
@@ -180,21 +168,15 @@ void Engine::generateLegalMovesKing(BoardState& state) {
         tempBoard[sRow][0] = ' ';
         move = "O-O-O";
 
-        if (isOppositeKingChecked(state, tempBoard, sRow, 3)) {
-            auto tempState = boardState;
-            tempState.isInCheck = true;
-            tempState.isWhite = !boardState.isWhite;
-            tempState.board = tempBoard;
+        if (!isKingInCheck(tempBoard, state.isWhite, true)) {
+            if (isKingInCheck(tempBoard, state.isWhite, false)) {
+                move += '+';
+                // TODO MATE
+                // TODO PREVENT CASTLE THROUGH CHECK
+            }
 
-            move += '+';
-            //if (!checkingMode && generateLegalMoves(tempState, true).size() == 0) {
-            //    move += '#';
-            //} else {
-            //    move += '+';
-            //}
+            state.legalMoves[move] = Move(sRow, sCol, sRow, 2);
         }
-
-        state.legalMoves[move] = Move(sRow, sCol, sRow, 2);
     }
 }
 
@@ -208,7 +190,7 @@ void Engine::generateLegalMovesPawn(BoardState& state) {
         }
         if (sCol - 1 >= 0 && isBlackPiece(state.board[sRow - 1][sCol - 1])) addMove(state, sRow - 1, sCol - 1);
         if (sCol + 1 < 8 && isBlackPiece(state.board[sRow - 1][sCol + 1])) addMove(state, sRow - 1, sCol + 1);
-        if (abs(boardState.enPassantCol - sCol) == 1 && boardState.enPassantRow == sRow - 1) addMove(state, boardState.enPassantRow, boardState.enPassantCol);
+        if (abs(state.enPassantCol - sCol) == 1 && state.enPassantRow == sRow - 1) addMove(state, state.enPassantRow, state.enPassantCol);
     } else {
         if (state.board[sRow + 1][sCol] == ' ') {
             addMove(state, sRow + 1, sCol);
@@ -218,8 +200,7 @@ void Engine::generateLegalMovesPawn(BoardState& state) {
         }
         if (sCol - 1 >= 0 && isWhitePiece(state.board[sRow + 1][sCol - 1])) addMove(state, sRow + 1, sCol - 1);
         if (sCol + 1 < 8 && isWhitePiece(state.board[sRow + 1][sCol + 1])) addMove(state, sRow + 1, sCol + 1);
-        if (abs(boardState.enPassantCol - sCol) == 1 && boardState.enPassantRow == sRow + 1) addMove(state, boardState.enPassantRow, boardState.enPassantCol);
-
+        if (abs(state.enPassantCol - sCol) == 1 && state.enPassantRow == sRow + 1) addMove(state, state.enPassantRow, state.enPassantCol);
     }
 }
 
@@ -265,72 +246,122 @@ bool Engine::addMove(BoardState& state, int eRow, int eCol) {
             else tempBoard[eRow][eCol] = m.back() + 0x20;
             tempBoard[sRow][sCol] = ' ';
 
-            if (isOppositeKingChecked(state, tempBoard, eRow, eCol)) m += '+';
-            // TODO PROMOTION MATE
-            state.legalMoves[m] = Move(sRow, sCol, eRow, eCol);
+            if (!isKingInCheck(tempBoard, state.isWhite, true)) {
+                if (isKingInCheck(tempBoard, state.isWhite, false)) {
+                    m += '+';
+                    // TODO PROMOTION MATE
+                }
+                state.legalMoves[m] = Move(sRow, sCol, eRow, eCol);
+            }
         }
         return false;
     }
 
-    if (isOppositeKingChecked(state, tempBoard, eRow, eCol)) {
-        move += "+";
-        // TODO MATE
-    }
+    tempBoard[eRow][eCol] = tempBoard[sRow][sCol];
+    tempBoard[sRow][sCol] = ' ';
 
-    if (state.legalMoves.contains(move)) {
-        cout << "Disambiguate move: " << move << endl;
-        if (!ambigiousMoves.contains(move)) {
-            cout << "Disambiguate original move: " << move << endl;
-            ambigiousMoves[move].push_back(state.legalMoves[move]);
-        } 
-        ambigiousMoves[move].push_back(Move(sRow, sCol, eRow, eCol));
+    if (!isKingInCheck(tempBoard, state.isWhite, true)) {
+        if (isKingInCheck(tempBoard, state.isWhite, false)) {
+            move += '+';
+            // TODO MATE
+        }
+
+        if (state.legalMoves.contains(move)) {
+            cout << "Disambiguate move: " << move << endl;
+            if (!ambigiousMoves.contains(move)) {
+                cout << "Disambiguate original move: " << move << endl;
+                ambigiousMoves[move].push_back(state.legalMoves[move]);
+            }
+            ambigiousMoves[move].push_back(Move(sRow, sCol, eRow, eCol));
+        }
+        state.legalMoves[move] = Move(sRow, sCol, eRow, eCol);
     }
-    state.legalMoves[move] = Move(sRow, sCol, eRow, eCol);
 
     if (end != ' ') return true;
     return false;
 }
 
-bool Engine::isOppositeKingChecked(BoardState& state, array<array<char, 8>, 8> board, int row, int col) {
-    char piece = board[row][col];
-    if ((state.isWhite && (piece == White::ROOK || piece == White::QUEEN)) || (!state.isWhite && (piece == Black::ROOK || piece == Black::QUEEN))) {
-        if (row == opponentKingPos.first) {
-            int s = min(col, opponentKingPos.second) + 1;
-            int e = max(col, opponentKingPos.second);
-            while (s < e) {
-                if (board[row][s] != ' ') return false;
-                s++;
+bool Engine::isKingInCheck(array<array<char, 8>, 8> &board, bool isWhite, bool checkSelf) const{
+    bool checkWhite;
+    if (isWhite) {
+        if (checkSelf) checkWhite = true;
+        else checkWhite = false;
+    } else {
+        if (checkSelf) checkWhite = false;
+        else checkWhite = true;
+    }
+
+    int kRow = -1;
+    int kCol = -1;
+    for (int row = 0; row < 8; row++) {
+        for (int col = 0; col < 8; col++) {
+            if ((checkWhite && board[row][col] == White::KING) || (!checkWhite && board[row][col] == Black::KING)) {
+                kRow = row;
+                kCol = col;
+                break;
             }
-            return true;
-        } else if (col == opponentKingPos.second) {
-            int s = min(row, opponentKingPos.first) + 1;
-            int e = max(row, opponentKingPos.first);
-            while (s < e) {
-                if (board[s][col] != ' ') return false;
-                s++;
-            }
-            return true;
+        }
+        if (kRow != -1) break;
+    }
+
+    for (int row = kRow - 1; row >= 0; row--) {
+        if (board[row][kCol] == ' ') continue;
+        if (actuallyCheckIsKingInCheck(checkWhite, board[row][kCol], true)) return true;
+        break;
+    }
+    for (int row = kRow + 1; row < 8; row++) {
+        if (board[row][kCol] == ' ') continue;
+        if (actuallyCheckIsKingInCheck(checkWhite, board[row][kCol], true)) return true;
+        break;
+    }
+    for (int col = kCol - 1; col >= 0; col--) {
+        if (board[kRow][col] == ' ') continue;
+        if (actuallyCheckIsKingInCheck(checkWhite, board[kRow][col], true)) return true;
+        break;
+    }
+    for (int col = kCol + 1; col < 8; col++) {
+        if (board[kRow][col] == ' ') continue;
+        if (actuallyCheckIsKingInCheck(checkWhite, board[kRow][col], true)) return true;
+        break;
+    }
+    for (int col = kCol + 1, row = kRow - 1; col < 8 && row >= 0; col++, row--) {
+        if (board[row][col] == ' ') continue;
+        if (actuallyCheckIsKingInCheck(checkWhite, board[row][col], true)) return true;
+        break;
+    }
+    for (int col = kCol + 1, row = kRow + 1; col < 8 && row < 8; col++, row++) {
+        if (board[row][col] == ' ') continue;
+        if (actuallyCheckIsKingInCheck(checkWhite, board[row][col], true)) return true;
+        break;
+    }
+    for (int col = kCol - 1, row = kRow - 1; col >= 0 && row >= 0; col--, row--) {
+        if (board[row][col] == ' ') continue;
+        if (actuallyCheckIsKingInCheck(checkWhite, board[row][col], true)) return true;
+        break;
+    }
+    for (int col = kCol - 1, row = kRow + 1; col >= 0 && row < 8; col--, row++) {
+        if (board[row][col] == ' ') continue;
+        if (actuallyCheckIsKingInCheck(checkWhite, board[row][col], true)) return true;
+        break;
+    }
+    for (auto const& offset : knightOffsets) {
+        int row = kRow + offset.first;
+        int col = kCol + offset.second;
+        if (row >= 0 && row < 8 && col >= 0 && col < 8) {
+            if ((checkWhite && board[row][col] == Black::KNIGHT) || (!checkWhite && board[row][col] == White::KNIGHT)) return true;
         }
     }
-    if ((state.isWhite && (piece == White::BISHOP || piece == White::QUEEN)) || (!state.isWhite && (piece == Black::BISHOP || piece == Black::QUEEN))) {
-        if (abs(row - opponentKingPos.first) == abs(col - opponentKingPos.second)) {
-            int s = min(row, opponentKingPos.first) + 1;
-            int e = max(row, opponentKingPos.first);
-            int c = min(col, opponentKingPos.second) + 1;
-            while (s < e) {
-                if (board[s][c] != ' ') return false;
-                s++;
-                c++;
-            }
-            return true;
-        }
+    if (checkWhite && kRow - 1 >= 0) {
+        if ((kCol - 1 >= 0 && board[kRow - 1][kCol - 1] == Black::PAWN) || (kCol + 1 < 8 && board[kRow - 1][kCol + 1] == Black::PAWN)) return true;
+    } else if (!checkWhite && kRow + 1 < 8) {
+        if ((kCol - 1 >= 0 && board[kRow + 1][kCol - 1] == White::PAWN) || (kCol + 1 < 8 && board[kRow + 1][kCol + 1] == White::PAWN)) return true;
     }
-    if ((state.isWhite && piece == White::KNIGHT) || (!state.isWhite && piece == Black::KNIGHT)) {
-        for (auto const& [r, c] : knightOffsets) {
-            if (row + r == opponentKingPos.first && col + c == opponentKingPos.second) return true;
-        }
-    }
-    if ((state.isWhite && piece == White::PAWN && ((col - 1 >= 0 && board[row - 1][col - 1] == Black::KING) || (col + 1 < 8 && board[row - 1][col + 1] == Black::KING))) || (!state.isWhite && piece == Black::PAWN && ((col - 1 >= 0 && board[row + 1][col - 1] == White::KING) || (col + 1 < 8 && board[row + 1][col + 1] == White::KING)))) return true;
+    return false;
+}
+
+bool Engine::actuallyCheckIsKingInCheck(bool checkWhite, char p, bool rookMode) const{
+    char p1 = checkWhite ? rookMode ? Black::ROOK : Black::BISHOP : rookMode ? White::ROOK : White::BISHOP;
+    if (p == p1 || (checkWhite && p == Black::QUEEN) || (!checkWhite && p == White::QUEEN)) return true;
     return false;
 }
 

@@ -12,11 +12,8 @@ public:
 	unordered_map<string, Move> generateLegalMoves(BoardState, bool = false);
 	Engine();
 private:
-	BoardState boardState;
 	int sRow = -1;
 	int sCol = -1;
-	pair<int, int> kingPos;
-	pair<int, int> opponentKingPos;
 	unordered_map<string, vector<Move>> ambigiousMoves;
 	bool checkingMode = false;
 	void generateLegalMovesRow(BoardState&);
@@ -27,6 +24,7 @@ private:
 	void generateLegalMovesPawn(BoardState&);
 	void generateLegalMovesUsingOffsets(BoardState&, array<pair<int, int>, 8>);
 	bool addMove(BoardState&, int, int);
-	bool isOppositeKingChecked(BoardState&, array<array<char, 8>, 8>, int, int);
+	bool isKingInCheck(array<array<char, 8>, 8>&, bool, bool) const;
+	bool actuallyCheckIsKingInCheck(bool, char, bool) const;
 	void disambiguateMoves(BoardState&);
 };
