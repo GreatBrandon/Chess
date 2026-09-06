@@ -71,7 +71,7 @@ struct BoardState {
     bool whiteCanLongCastle = true;
     bool blackCanShortCastle = true;
     bool blackCanLongCastle = true;
-    bool isInCheck = false;
+    bool isInCheck = false; // only used INTERNALLY to determine mating
     int enPassantRow = -1;
     int enPassantCol = -1;
     int stalemateMoveCounter = 0;

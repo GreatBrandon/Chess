@@ -1,5 +1,4 @@
 #include "engine.h"
-#include <iostream>
 
 const array<pair<int, int>, 8> knightOffsets = { {
     {-2, -1}, {-2, 1},
@@ -56,16 +55,7 @@ void Engine::generateLegalMoves(BoardState& state) {
             }
         }
     }
-
     disambiguateMoves(state);
-    if (state.isWhite) {
-        cout << "White to move" << endl;
-    } else {
-        cout << "Black to move" << endl;
-    }
-    for (auto const& [notation, move] : state.legalMoves) {
-        std::cout << notation << ':' << move.sRow << ',' << move.sCol << ',' << move.eRow << ',' << move.eCol << std::endl;
-    }
 }
 
 void Engine::generateLegalMovesRow(BoardState& state) {
@@ -115,8 +105,6 @@ void Engine::generateLegalMovesKing(BoardState& state) {
     bool shortCastled = false;
     bool longCastled = false;
 
-    // TODO PREVENT CASTLING WHEN CHECKED
-
     if (state.isWhite && sRow == 7 && sCol == 4 && !state.isInCheck) {
         if (state.whiteCanLongCastle && state.board[7][1] == ' ' && state.board[7][2] == ' ' && state.board[7][3] == ' ') {
             longCastled = true;
@@ -133,43 +121,48 @@ void Engine::generateLegalMovesKing(BoardState& state) {
         }
     }
 
+    if (shortCastled || longCastled) {
+        if (isKingInCheck(state.board, state.isWhite, true)) return;
+    }
+
     string move = string();
     auto tempState(state);
     auto &tempBoard = tempState.board;
 
     if (shortCastled) {
         tempBoard = state.board;
-        tempBoard[sRow][6] = tempBoard[sRow][sCol];
+        tempBoard[sRow][5] = tempBoard[sRow][sCol];
         tempBoard[sRow][sCol] = ' ';
-        tempBoard[sRow][5] = tempBoard[sRow][0];
-        tempBoard[sRow][7] = ' ';
-        move = "O-O";
-
         if (!isKingInCheck(tempBoard, state.isWhite, true)) {
-            if (isKingInCheck(tempBoard, state.isWhite, false)) {
-                checkMate(state, tempState, move);
-                // TODO PREVENT CASTLE THROUGH CHECK
+            tempBoard[sRow][6] = tempBoard[sRow][5];
+            tempBoard[sRow][5] = tempBoard[sRow][0];
+            tempBoard[sRow][7] = ' ';
+            move = "O-O";
+
+            if (!isKingInCheck(tempBoard, state.isWhite, true)) {
+                if (isKingInCheck(tempBoard, state.isWhite, false)) {
+                    checkMate(state, tempState, move);
+                }
+                state.legalMoves[move] = Move(sRow, sCol, sRow, 6);
             }
-
-            state.legalMoves[move] = Move(sRow, sCol, sRow, 6);
         }
-
     }
     if (longCastled) {
         tempBoard = state.board;
-        tempBoard[sRow][2] = tempBoard[sRow][sCol];
+        tempBoard[sRow][3] = tempBoard[sRow][sCol];
         tempBoard[sRow][sCol] = ' ';
-        tempBoard[sRow][3] = tempBoard[sRow][0];
-        tempBoard[sRow][0] = ' ';
-        move = "O-O-O";
-
         if (!isKingInCheck(tempBoard, state.isWhite, true)) {
-            if (isKingInCheck(tempBoard, state.isWhite, false)) {
-                checkMate(state, tempState, move);
-                // TODO PREVENT CASTLE THROUGH CHECK
-            }
+            tempBoard[sRow][2] = tempBoard[sRow][3];
+            tempBoard[sRow][3] = tempBoard[sRow][0];
+            tempBoard[sRow][0] = ' ';
+            move = "O-O-O";
 
-            state.legalMoves[move] = Move(sRow, sCol, sRow, 2);
+            if (!isKingInCheck(tempBoard, state.isWhite, true)) {
+                if (isKingInCheck(tempBoard, state.isWhite, false)) {
+                    checkMate(state, tempState, move);
+                }
+                state.legalMoves[move] = Move(sRow, sCol, sRow, 2);
+            }
         }
     }
 }
