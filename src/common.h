@@ -76,4 +76,44 @@ struct BoardState {
     int enPassantCol = -1;
     int stalemateMoveCounter = 0;
     std::unordered_map<std::string, Move> legalMoves;
+    std::unordered_map<std::string, std::vector<Move>> ambigiousMoves;
+
+    BoardState(){
+        legalMoves.reserve(64);
+        ambigiousMoves.reserve(8);
+    }
+
+    BoardState(const BoardState& other) : 
+        board(other.board),
+        isWhite(other.isWhite),
+        whiteCanShortCastle(other.whiteCanShortCastle),
+        whiteCanLongCastle(other.whiteCanLongCastle),
+        blackCanShortCastle(other.blackCanShortCastle),
+        blackCanLongCastle(other.blackCanLongCastle),
+        isInCheck(other.isInCheck),
+        enPassantRow(other.enPassantRow),
+        enPassantCol(other.enPassantCol),
+        stalemateMoveCounter(other.stalemateMoveCounter)
+    {
+        legalMoves.reserve(64);
+        ambigiousMoves.reserve(8);
+    }
+
+    BoardState& operator=(const BoardState& other) {
+        board = other.board;
+        isWhite = other.isWhite;
+        whiteCanShortCastle = other.whiteCanShortCastle;
+        whiteCanLongCastle = other.whiteCanLongCastle;
+        blackCanShortCastle = other.blackCanShortCastle;
+        blackCanLongCastle = other.blackCanLongCastle;
+        isInCheck = other.isInCheck;
+        enPassantRow = other.enPassantRow;
+        enPassantCol = other.enPassantCol;
+        stalemateMoveCounter = other.stalemateMoveCounter;
+
+        legalMoves.clear();
+        ambigiousMoves.clear();
+
+        return *this;
+    }
 };

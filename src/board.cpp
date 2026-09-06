@@ -41,7 +41,7 @@ void chessBoard::newGame() {
     isDraw = false;
     isCheckmate = false;
     lastIrreversibleMove = 0;
-    boardState.legalMoves = engine.generateLegalMoves(boardState);
+    engine.generateLegalMoves(boardState);
     previousMoves.clear();
     previousMoves.push_back(boardState);
 }
@@ -120,6 +120,13 @@ void chessBoard::playMove(int start, int end, char promotionPiece) {
             moves.push_back(notation);
             previousMoves.push_back(boardState);
 
+            // Checkmate
+            if (notation.ends_with('#')) {
+                cout << "CHECKMATE" << endl;
+                isCheckmate = true;
+                return;
+            }
+
             // Check stalemate
             if (boardState.stalemateMoveCounter == 100) {
                 cout << "DRAW BY 50 MOVE RULE" << endl;
@@ -148,16 +155,10 @@ void chessBoard::playMove(int sRow, int sCol, int eRow, int eCol) {
 
 void chessBoard::changePlayer() {
     boardState.isWhite = !boardState.isWhite;
-    boardState.legalMoves = engine.generateLegalMoves(boardState);
-    //legalMoves = engine.generateLegalMoves(boardState);
+    engine.generateLegalMoves(boardState);
     if (boardState.legalMoves.size() == 0) {
-        if (boardState.isInCheck) {
-            cout << "CHECKMATE" << endl;
-            isCheckmate = true;
-        } else {
-            cout << "DRAW BY STALEMATE" << endl;
-            isDraw = true;
-        }
+        cout << "DRAW BY STALEMATE" << endl;
+        isDraw = true;
     } else if (isDraw) {
         boardState.legalMoves.clear();
     }

@@ -8,13 +8,11 @@ const array<pair<int, int>, 8> knightOffsets = { {
     {2, -1}, {2, 1}
 } };
 
-Engine::Engine() {
-    this->ambigiousMoves.reserve(8);
-};
+Engine::Engine() {};
 
-unordered_map<string, Move> Engine::generateLegalMoves(BoardState state, bool checkingMode) {
+void Engine::generateLegalMoves(BoardState& state) {
     state.legalMoves.clear();
-    ambigiousMoves.clear(); // TODO possibly being overwritten when evaluating mate
+    state.ambigiousMoves.clear();
 
     for (int row = 0; row < 8; row++) {
         for (int col = 0; col < 8; col++) {
@@ -68,8 +66,6 @@ unordered_map<string, Move> Engine::generateLegalMoves(BoardState state, bool ch
     for (auto const& [notation, move] : state.legalMoves) {
         std::cout << notation << ':' << move.sRow << ',' << move.sCol << ',' << move.eRow << ',' << move.eCol << std::endl;
     }
-
-    return state.legalMoves;
 }
 
 void Engine::generateLegalMovesRow(BoardState& state) {
@@ -138,8 +134,8 @@ void Engine::generateLegalMovesKing(BoardState& state) {
     }
 
     string move = string();
-    array<array<char, 8>, 8> tempBoard = state.board;
-    bool isCheck = false;
+    auto tempState(state);
+    auto &tempBoard = tempState.board;
 
     if (shortCastled) {
         tempBoard = state.board;
@@ -151,8 +147,7 @@ void Engine::generateLegalMovesKing(BoardState& state) {
 
         if (!isKingInCheck(tempBoard, state.isWhite, true)) {
             if (isKingInCheck(tempBoard, state.isWhite, false)) {
-                move += '+';
-                // TODO MATE
+                checkMate(state, tempState, move);
                 // TODO PREVENT CASTLE THROUGH CHECK
             }
 
@@ -170,8 +165,7 @@ void Engine::generateLegalMovesKing(BoardState& state) {
 
         if (!isKingInCheck(tempBoard, state.isWhite, true)) {
             if (isKingInCheck(tempBoard, state.isWhite, false)) {
-                move += '+';
-                // TODO MATE
+                checkMate(state, tempState, move);
                 // TODO PREVENT CASTLE THROUGH CHECK
             }
 
@@ -190,7 +184,7 @@ void Engine::generateLegalMovesPawn(BoardState& state) {
         }
         if (sCol - 1 >= 0 && isBlackPiece(state.board[sRow - 1][sCol - 1])) addMove(state, sRow - 1, sCol - 1);
         if (sCol + 1 < 8 && isBlackPiece(state.board[sRow - 1][sCol + 1])) addMove(state, sRow - 1, sCol + 1);
-        if (abs(state.enPassantCol - sCol) == 1 && state.enPassantRow == sRow - 1) addMove(state, state.enPassantRow, state.enPassantCol);
+        if (abs(state.enPassantCol - sCol) == 1 && sRow == 3 && state.enPassantRow == 2) addMove(state, state.enPassantRow, state.enPassantCol);
     } else {
         if (state.board[sRow + 1][sCol] == ' ') {
             addMove(state, sRow + 1, sCol);
@@ -200,12 +194,12 @@ void Engine::generateLegalMovesPawn(BoardState& state) {
         }
         if (sCol - 1 >= 0 && isWhitePiece(state.board[sRow + 1][sCol - 1])) addMove(state, sRow + 1, sCol - 1);
         if (sCol + 1 < 8 && isWhitePiece(state.board[sRow + 1][sCol + 1])) addMove(state, sRow + 1, sCol + 1);
-        if (abs(state.enPassantCol - sCol) == 1 && state.enPassantRow == sRow + 1) addMove(state, state.enPassantRow, state.enPassantCol);
+        if (abs(state.enPassantCol - sCol) == 1 && sRow == 4 && state.enPassantRow == 5) addMove(state, state.enPassantRow, state.enPassantCol);
     }
 }
 
 void Engine::generateLegalMovesUsingOffsets(BoardState& state, array<pair<int, int>, 8> offsets) {
-    for (auto [oRow, oCol] : offsets) {
+    for (auto const&[oRow, oCol] : offsets) {
         int eRow = sRow + oRow;
         int eCol = sCol + oCol;
 
@@ -214,7 +208,7 @@ void Engine::generateLegalMovesUsingOffsets(BoardState& state, array<pair<int, i
 }
 
 bool Engine::addMove(BoardState& state, int eRow, int eCol) {
-    char end = state.board[eRow][eCol];
+    const char end = state.board[eRow][eCol];
     if ((state.isWhite && isWhitePiece(end)) || (!state.isWhite && isBlackPiece(end))) return true;
     bool isPawn = state.board[sRow][sCol] == White::PAWN || state.board[sRow][sCol] == Black::PAWN;
     string move = string();
@@ -223,9 +217,9 @@ bool Engine::addMove(BoardState& state, int eRow, int eCol) {
         move += toupper(state.board[sRow][sCol]);
     }
 
-    if (isPawn && state.board[eRow][eCol] == ' ' && abs(eCol - sCol) == 1) {
+    if (isPawn && end == ' ' && abs(eCol - sCol) == 1) {
         move = move + (char)('a' + sCol) + 'x';
-    } else if (state.board[eRow][eCol] != ' ') {
+    } else if (end != ' ') {
         if (isPawn) {
             move = move + (char)('a' + sCol) + 'x';
         } else {
@@ -235,21 +229,21 @@ bool Engine::addMove(BoardState& state, int eRow, int eCol) {
 
     move = move + (char)('a' + eCol) + (char)('8' - eRow);
 
-    array<array<char, 8>, 8> tempBoard = state.board;
+    auto tempState(state);
+    auto &tempBoard = tempState.board;
 
     if (isPawn && ((state.isWhite && eRow == 0) || (!state.isWhite && eRow == 7))) {
         array<string, 4> promotionMoves = { {
             move + "=Q", move + "=B", move + "=N", move + "=R"
             } };
-        for (auto& m : promotionMoves) {
+        for (auto &m : promotionMoves) {
             if (state.isWhite) tempBoard[eRow][eCol] = m.back();
             else tempBoard[eRow][eCol] = m.back() + 0x20;
             tempBoard[sRow][sCol] = ' ';
 
             if (!isKingInCheck(tempBoard, state.isWhite, true)) {
                 if (isKingInCheck(tempBoard, state.isWhite, false)) {
-                    m += '+';
-                    // TODO PROMOTION MATE
+                    checkMate(state, tempState, m);
                 }
                 state.legalMoves[m] = Move(sRow, sCol, eRow, eCol);
             }
@@ -260,19 +254,21 @@ bool Engine::addMove(BoardState& state, int eRow, int eCol) {
     tempBoard[eRow][eCol] = tempBoard[sRow][sCol];
     tempBoard[sRow][sCol] = ' ';
 
+    if (isPawn && abs(eCol - sCol) == 1 && end == ' ') {
+        if (state.isWhite) tempBoard[eRow + 1][eCol] = ' ';
+        else tempBoard[eRow - 1][eCol] = ' ';
+    }
+
     if (!isKingInCheck(tempBoard, state.isWhite, true)) {
         if (isKingInCheck(tempBoard, state.isWhite, false)) {
-            move += '+';
-            // TODO MATE
+            checkMate(state, tempState, move);
         }
 
         if (state.legalMoves.contains(move)) {
-            cout << "Disambiguate move: " << move << endl;
-            if (!ambigiousMoves.contains(move)) {
-                cout << "Disambiguate original move: " << move << endl;
-                ambigiousMoves[move].push_back(state.legalMoves[move]);
+            if (!state.ambigiousMoves.contains(move)) {
+                state.ambigiousMoves[move].push_back(state.legalMoves[move]);
             }
-            ambigiousMoves[move].push_back(Move(sRow, sCol, eRow, eCol));
+            state.ambigiousMoves[move].push_back(Move(sRow, sCol, eRow, eCol));
         }
         state.legalMoves[move] = Move(sRow, sCol, eRow, eCol);
     }
@@ -281,16 +277,24 @@ bool Engine::addMove(BoardState& state, int eRow, int eCol) {
     return false;
 }
 
-bool Engine::isKingInCheck(array<array<char, 8>, 8> &board, bool isWhite, bool checkSelf) const{
-    bool checkWhite;
-    if (isWhite) {
-        if (checkSelf) checkWhite = true;
-        else checkWhite = false;
+void Engine::checkMate(BoardState& state, BoardState& tempState, string& move) {
+    if (!state.isInCheck) {
+        tempState.isInCheck = true;
+        tempState.isWhite = !tempState.isWhite;
+        int tempSRow = sRow;
+        int tempSCol = sCol;
+        generateLegalMoves(tempState);
+        sRow = tempSRow;
+        sCol = tempSCol;
+        if (tempState.legalMoves.size() == 0) move += '#';
+        else move += '+';
     } else {
-        if (checkSelf) checkWhite = false;
-        else checkWhite = true;
+        move += '+'; // we don't really care about this I think
     }
+}
 
+bool Engine::isKingInCheck(array<array<char, 8>, 8> &board, bool isWhite, bool checkSelf) const{
+    bool checkWhite = isWhite ? checkSelf ? true : false : checkSelf ? false : true;
     int kRow = -1;
     int kCol = -1;
     for (int row = 0; row < 8; row++) {
@@ -326,27 +330,27 @@ bool Engine::isKingInCheck(array<array<char, 8>, 8> &board, bool isWhite, bool c
     }
     for (int col = kCol + 1, row = kRow - 1; col < 8 && row >= 0; col++, row--) {
         if (board[row][col] == ' ') continue;
-        if (actuallyCheckIsKingInCheck(checkWhite, board[row][col], true)) return true;
+        if (actuallyCheckIsKingInCheck(checkWhite, board[row][col], false)) return true;
         break;
     }
     for (int col = kCol + 1, row = kRow + 1; col < 8 && row < 8; col++, row++) {
         if (board[row][col] == ' ') continue;
-        if (actuallyCheckIsKingInCheck(checkWhite, board[row][col], true)) return true;
+        if (actuallyCheckIsKingInCheck(checkWhite, board[row][col], false)) return true;
         break;
     }
     for (int col = kCol - 1, row = kRow - 1; col >= 0 && row >= 0; col--, row--) {
         if (board[row][col] == ' ') continue;
-        if (actuallyCheckIsKingInCheck(checkWhite, board[row][col], true)) return true;
+        if (actuallyCheckIsKingInCheck(checkWhite, board[row][col], false)) return true;
         break;
     }
     for (int col = kCol - 1, row = kRow + 1; col >= 0 && row < 8; col--, row++) {
         if (board[row][col] == ' ') continue;
-        if (actuallyCheckIsKingInCheck(checkWhite, board[row][col], true)) return true;
+        if (actuallyCheckIsKingInCheck(checkWhite, board[row][col], false)) return true;
         break;
     }
     for (auto const& offset : knightOffsets) {
-        int row = kRow + offset.first;
-        int col = kCol + offset.second;
+        const int row = kRow + offset.first;
+        const int col = kCol + offset.second;
         if (row >= 0 && row < 8 && col >= 0 && col < 8) {
             if ((checkWhite && board[row][col] == Black::KNIGHT) || (!checkWhite && board[row][col] == White::KNIGHT)) return true;
         }
@@ -359,14 +363,14 @@ bool Engine::isKingInCheck(array<array<char, 8>, 8> &board, bool isWhite, bool c
     return false;
 }
 
-bool Engine::actuallyCheckIsKingInCheck(bool checkWhite, char p, bool rookMode) const{
-    char p1 = checkWhite ? rookMode ? Black::ROOK : Black::BISHOP : rookMode ? White::ROOK : White::BISHOP;
+bool Engine::actuallyCheckIsKingInCheck(bool checkWhite, char p, bool rookMode) const {
+    const char p1 = checkWhite ? rookMode ? Black::ROOK : Black::BISHOP : rookMode ? White::ROOK : White::BISHOP;
     if (p == p1 || (checkWhite && p == Black::QUEEN) || (!checkWhite && p == White::QUEEN)) return true;
     return false;
 }
 
 void Engine::disambiguateMoves(BoardState& state) {
-    for (auto const&[notation, moves] : ambigiousMoves) {
+    for (auto const&[notation, moves] : state.ambigiousMoves) {
         state.legalMoves.erase(notation);
 
         for (const Move& move : moves) {
@@ -396,5 +400,5 @@ void Engine::disambiguateMoves(BoardState& state) {
             state.legalMoves[newNotation] = move;
         }
     }
-    ambigiousMoves.clear();
+    state.ambigiousMoves.clear();
 }

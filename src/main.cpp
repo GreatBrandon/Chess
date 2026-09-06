@@ -37,7 +37,7 @@ int main () {
 	pieces['n'] = LoadTexture("bn.png");
 	pieces['p'] = LoadTexture("bp.png");
 
-	array<array<Rectangle, 8>, 8> rects;
+	array<array<Rectangle, 8>, 8> rects{};
 	for (int row = 0; row < 8; row++) {
 		for (int col = 0; col < 8; col++) {
 			rects[row][col] = Rectangle(ORIGIN + SIZE * col, ORIGIN + SIZE * row, SIZE, SIZE);
@@ -54,17 +54,19 @@ int main () {
 	{
 		if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
 			Vector2 mousePos = GetMousePosition();
-			for (int row = 0; row < 8; row++) {
-				for (int col = 0; col < 8; col++) {
-					if (CheckCollisionPointRec(mousePos, rects[row][col]) && 
-						((board.isWhite() && isWhitePiece(board.board[row][col]))
-						|| (board.isBlack() && isBlackPiece(board.board[row][col])))) {
+			if (CheckCollisionPointRec(mousePos, newGameButton)) board.newGame();
+			if (!board.isDraw && !board.isCheckmate) {
+				for (int row = 0; row < 8; row++) {
+					for (int col = 0; col < 8; col++) {
+						if (CheckCollisionPointRec(mousePos, rects[row][col]) &&
+							((board.isWhite() && isWhitePiece(board.board[row][col]))
+								|| (board.isBlack() && isBlackPiece(board.board[row][col])))) {
 							selectedRect = row * 8 + col;
 							validMoves = board.getValidMovesFromPosition(row, col);
+						}
 					}
 				}
 			}
-			if (CheckCollisionPointRec(mousePos, newGameButton)) board.newGame();
 		} else if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
 			if (selectedRect != -1) {
 				Vector2 mousePos = GetMousePosition();
@@ -107,7 +109,7 @@ int main () {
 			}
 		}
 
-		auto b = board.board;
+		auto const& b = board.board;
 		for (int row = 0; row < 8; row++) {
 			for (int col = 0; col < 8; col++) {
 				if (row * 8 + col == selectedRect) {
