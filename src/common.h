@@ -2,6 +2,7 @@
 #include <array>
 #include <unordered_map>
 #include <string>
+#include <vector>
 
 namespace White {
     constexpr char KING = 'K',
@@ -10,6 +11,10 @@ namespace White {
         KNIGHT = 'N',
         ROOK = 'R',
         PAWN = 'P';
+
+    constexpr std::array pieces{
+        QUEEN, BISHOP, KNIGHT, ROOK, PAWN
+    };
 }
 
 namespace Black {
@@ -19,6 +24,9 @@ namespace Black {
         KNIGHT = 'n',
         ROOK = 'r',
         PAWN = 'p';
+    constexpr std::array pieces{
+        QUEEN, BISHOP, KNIGHT, ROOK, PAWN
+    };
 }
 
 struct Move {

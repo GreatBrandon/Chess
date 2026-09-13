@@ -7,62 +7,108 @@
 
 #include "resource_dir.h"	// utility header for SearchAndSetResourceDir
 
-#define ORIGIN 60
-#define SIZE 75 // matches texture size without scaling
+enum class Screens {
+	MENU,
+	SINGLE_PLAYER,
+	TWO_PLAYER,
+	ONLINE_MATCH,
+	DRAW,
+	CHECKMATE
+};
 
-int main () {
+// Constants
+constexpr int ORIGIN = 60;
+constexpr int SIZE = 75;
+constexpr int SMALL_FONT = 18;
+constexpr int MEDIUM_FONT = 24;
+constexpr int MEDIUM_LARGE_FONT = 32;
+constexpr int LARGE_FONT = 40;
+constexpr int NOTATION_ROWS = 22;
+constexpr int NOTATION_ROW_HEIGHT = MEDIUM_FONT + 2;
+
+int main() {
+	auto currentScreen = Screens::MENU;
 	auto board = chessBoard();
 
-	// Tell the window to use vsync and work on high DPI displays
 	SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_HIGHDPI | FLAG_WINDOW_ALWAYS_RUN);
-	// Create the window and OpenGL context
 	InitWindow(1280, 720, "Chess");
+	SearchAndSetResourceDir("resources");
 
-	// Utility function from resource_dir.h to find the resources folder and set it as the current working directory so we can load from it
-	SearchAndSetResourceDir("resources"); //
-
-	// Load a texture from the resources directory
-	Texture wabbit = LoadTexture("wabbit_alpha.png");
+	// Initialise textures
 	map<char, Texture> pieces;
-	pieces['K'] = LoadTexture("wk.png");
-	pieces['Q'] = LoadTexture("wq.png");
-	pieces['B'] = LoadTexture("wb.png");
-	pieces['R'] = LoadTexture("wr.png");
-	pieces['N'] = LoadTexture("wn.png");
-	pieces['P'] = LoadTexture("wp.png");
-	pieces['k'] = LoadTexture("bk.png");
-	pieces['q'] = LoadTexture("bq.png");
-	pieces['b'] = LoadTexture("bb.png");
-	pieces['r'] = LoadTexture("br.png");
-	pieces['n'] = LoadTexture("bn.png");
-	pieces['p'] = LoadTexture("bp.png");
+	pieces[White::KING] = LoadTexture("wk.png");
+	pieces[White::QUEEN] = LoadTexture("wq.png");
+	pieces[White::BISHOP] = LoadTexture("wb.png");
+	pieces[White::ROOK] = LoadTexture("wr.png");
+	pieces[White::KNIGHT] = LoadTexture("wn.png");
+	pieces[White::PAWN] = LoadTexture("wp.png");
+	pieces[Black::KING] = LoadTexture("bk.png");
+	pieces[Black::QUEEN] = LoadTexture("bq.png");
+	pieces[Black::BISHOP] = LoadTexture("bb.png");
+	pieces[Black::ROOK] = LoadTexture("br.png");
+	pieces[Black::KNIGHT] = LoadTexture("bn.png");
+	pieces[Black::PAWN] = LoadTexture("bp.png");
 
+	// Initialise rectangles
 	array<array<Rectangle, 8>, 8> rects{};
 	for (int row = 0; row < 8; row++) {
 		for (int col = 0; col < 8; col++) {
 			rects[row][col] = Rectangle(ORIGIN + SIZE * col, ORIGIN + SIZE * row, SIZE, SIZE);
 		}
 	}
+	
+	Rectangle newGameButton = Rectangle(1080, 300, 130, 30);
+	Rectangle singlePlayerButton = Rectangle(440, 200, 400, 70);
+	Rectangle doublePlayerButton = Rectangle(440, 300, 400, 70);
+	Rectangle onlinePlayButton = Rectangle(440, 400, 400, 70);
+	Rectangle notationRect = Rectangle(700, ORIGIN + NOTATION_ROW_HEIGHT, 300, NOTATION_ROW_HEIGHT * NOTATION_ROWS + 10);
+	Rectangle roundedNotationRect = Rectangle(700, ORIGIN, 300, NOTATION_ROW_HEIGHT * (NOTATION_ROWS + 1) + 10);
+	const char* backToGameButtonText = "Back";
+	const int textWidth = MeasureText(backToGameButtonText, MEDIUM_FONT);
+	Rectangle backToGameButton = Rectangle((GetScreenWidth() - textWidth) / 2, 400, textWidth + 20, MEDIUM_FONT + 20);
+
+
+	// Initialise other
 	int selectedRect = -1;
 	int droppedRect = -1;
 	vector<pair<int, int>> validMoves;
 	char promotionPiece = 'Q';
-	
-	Rectangle newGameButton = Rectangle(700, 30, 130, 30);
-	// game loop
-	while (!WindowShouldClose())		// run the loop until the user presses ESCAPE or presses the Close button on the window
-	{
-		if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+	bool backPressed = false;
+
+	// Game loop
+	while (!WindowShouldClose()) {
+		// Check inputs
+		if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
 			Vector2 mousePos = GetMousePosition();
-			if (CheckCollisionPointRec(mousePos, newGameButton)) board.newGame();
-			if (!board.isDraw && !board.isCheckmate) {
-				for (int row = 0; row < 8; row++) {
-					for (int col = 0; col < 8; col++) {
-						if (CheckCollisionPointRec(mousePos, rects[row][col]) &&
-							((board.isWhite() && isWhitePiece(board.board[row][col]))
-								|| (board.isBlack() && isBlackPiece(board.board[row][col])))) {
-							selectedRect = row * 8 + col;
-							validMoves = board.getValidMovesFromPosition(row, col);
+			if (currentScreen == Screens::MENU) {
+				if (CheckCollisionPointRec(mousePos, singlePlayerButton)) {
+					board.newGame(true);
+					currentScreen = Screens::SINGLE_PLAYER;
+				}
+				if (CheckCollisionPointRec(mousePos, doublePlayerButton)) {
+					board.newGame(false);
+					currentScreen = Screens::TWO_PLAYER;
+				}
+				if (CheckCollisionPointRec(mousePos, onlinePlayButton)) {
+					//board.newGame(false);
+					//currentScreen = Screens::ONLINE_MATCH;
+				}
+			} else if (currentScreen == Screens::DRAW || currentScreen == Screens::CHECKMATE) {
+				if (CheckCollisionPointRec(mousePos, backToGameButton)) {
+					currentScreen = Screens::SINGLE_PLAYER; // potentially maybe can break something in the future
+					backPressed = true;
+				}
+			} else {
+				if (CheckCollisionPointRec(mousePos, newGameButton)) currentScreen = Screens::MENU;
+				if (!board.isDraw && !board.isCheckmate) {
+					for (int row = 0; row < 8; row++) {
+						for (int col = 0; col < 8; col++) {
+							if (CheckCollisionPointRec(mousePos, rects[row][col]) &&
+								((board.isWhite() && isWhitePiece(board.board[row][col]))
+									|| (board.isBlack() && isBlackPiece(board.board[row][col])))) {
+								selectedRect = row * 8 + col;
+								validMoves = board.getValidMovesFromPosition(row, col);
+							}
 						}
 					}
 				}
@@ -94,16 +140,39 @@ int main () {
 
 		// Setup the back buffer for drawing (clear color and depth buffers)
 		ClearBackground(BLACK);
-		const int FONT_SIZE = 24;
 
+		// Menu Screen
+		if (currentScreen == Screens::MENU) {
+			DrawText("CHESS", 510, 100, 72, WHITE);
+			DrawRectangleRounded(singlePlayerButton, 0.9f, 10, BROWN);
+			DrawRectangleRounded(doublePlayerButton, 0.9f, 10, BROWN);
+			DrawRectangleRounded(onlinePlayButton, 0.9f, 10, BROWN);
+			DrawText("Single player", 510, 215, LARGE_FONT, WHITE);
+			DrawText("Double player", 500, 315, LARGE_FONT, WHITE);
+			DrawText("Online play", 530, 415, LARGE_FONT, WHITE);
+			EndDrawing();
+			continue;
+		} else if (currentScreen == Screens::DRAW || currentScreen == Screens::CHECKMATE) {
+			const char* text = currentScreen == Screens::DRAW ? "Game ended in a draw!" : board.boardState.isWhite ? "White won!" : "Black won!";
+			const int textWidth = MeasureText(text, LARGE_FONT);
+			DrawText(text, (GetScreenWidth() - textWidth) / 2, (GetScreenHeight() - LARGE_FONT) / 2, LARGE_FONT, WHITE);
+			DrawRectangleRounded(backToGameButton, 0.2, 10, BROWN);
+			DrawRectangleRoundedLinesEx(backToGameButton, 0.2, 10, 2, DARKBROWN);
+			DrawText(backToGameButtonText, backToGameButton.x + 10, backToGameButton.y + MEDIUM_FONT / 2, MEDIUM_FONT, WHITE);
+			EndDrawing();
+			continue;
+		}
+
+		// Game screen
+		// Board
 		for (int col = 0; col < 8; col++) {
 			char text[2] = { 'A' + col, '\0' };
-			DrawText(text, ORIGIN + SIZE * col + SIZE / 2 - FONT_SIZE / 2, ORIGIN - 25, FONT_SIZE, WHITE);
+			DrawText(text, ORIGIN + SIZE * col + SIZE / 2 - SMALL_FONT / 2 + 4, ORIGIN - SMALL_FONT + 1, SMALL_FONT, WHITE);
 		}
 
 		for (int row = 0; row < 8; row++) {
 			char text[2] = {'8'- row, '\0'};
-			DrawText(text, ORIGIN - 25, ORIGIN + SIZE * row + SIZE / 2 - FONT_SIZE / 2, FONT_SIZE, WHITE);
+			DrawText(text, ORIGIN - SMALL_FONT + 1, ORIGIN + SIZE * row + SIZE / 2 - SMALL_FONT / 2 + 2, SMALL_FONT, WHITE);
 			for (int col = 0; col < 8; col++) {
 				DrawRectangleRec(rects[row][col], ((row + col) % 2 == 0) ? BROWN : DARKBROWN);
 			}
@@ -120,6 +189,7 @@ int main () {
 			}
 		}
 
+		// Draw dragged piece
 		if (selectedRect != -1) {
 			for (auto const& [row, col] : validMoves) {
 				DrawCircle(rects[row][col].x + SIZE / 2, rects[row][col].y + SIZE / 2, 15, { 200, 200, 200, 80 });
@@ -131,48 +201,92 @@ int main () {
 			DrawTextureEx(pieces[b[selectedRect / 8][selectedRect % 8]], pos, 0, 0.5, WHITE);
 		}
 
-		const char* text = (board.isWhite()) ? "White" : "Black";
-		DrawText(text, 700, 100, FONT_SIZE, WHITE);
+		// Draw Player turn
+		string text = (board.isWhite() ? "White" : "Black");
+		text += " to play";
+		DrawText(text.c_str(), notationRect.x + 10, ORIGIN - MEDIUM_LARGE_FONT - 2, MEDIUM_LARGE_FONT, WHITE);
 
-		const int coln = 700;
-		const int colw = 750;
-		const int colb = 850;
-		const int row1 = 130;
+		// Draw notation
+		DrawRectangleRounded(roundedNotationRect, 0.1, 10, BROWN);
+		DrawRectangleRoundedLinesEx(roundedNotationRect, 0.1, 10, 4, DARKBROWN);
+		DrawText("Move history:", roundedNotationRect.x + 10, roundedNotationRect.y + 4, MEDIUM_FONT, WHITE);
+		int startRow = notationRect.y + 10;
+
+		BeginScissorMode(notationRect.x, notationRect.y, notationRect.width, notationRect.height);
+
+		const int totalRows = (board.moves.size() + 1) / 2;
+
+		if (totalRows > NOTATION_ROWS) {
+			startRow -= (totalRows - NOTATION_ROWS) * NOTATION_ROW_HEIGHT;
+		}
 
 		for (int i = 0; i < board.moves.size(); i++) {
-			const int row = row1 + i / 2 * (FONT_SIZE + 2);
+			const int row = startRow + i / 2 * NOTATION_ROW_HEIGHT;
+			if (row < notationRect.y) continue;
 			if (i % 2 == 0) {
-				string num = to_string(i / 2 + 1);
-				DrawText(num.c_str(), coln, row, FONT_SIZE, WHITE);
-				DrawText(board.moves[i].c_str(), colw, row, FONT_SIZE, WHITE);
+				string numText = to_string(i / 2 + 1);
+				numText += '.';
+				DrawText(numText.c_str(), notationRect.x + 10, row, MEDIUM_FONT, WHITE);
+				DrawText(board.moves[i].c_str(), notationRect.x + 60, row, MEDIUM_FONT, WHITE);
 			} else {
-				DrawText(board.moves[i].c_str(), colb, row, FONT_SIZE, WHITE);
+				DrawText(board.moves[i].c_str(), notationRect.x + 170, row, MEDIUM_FONT, WHITE);
 			}
 		}
 
-		DrawRectangleRounded(newGameButton, 0.75, 0, GREEN);
-		DrawText("New Game", 710, 35, FONT_SIZE, WHITE);
+		EndScissorMode();
 
-
-		DrawText(((string) "Next pawn promotes to: " + promotionPiece).c_str(), 710, 640, FONT_SIZE, WHITE);
-		DrawText("Press Q/R/N/B to change", 710, 670, FONT_SIZE, WHITE);
-
-		if (board.isDraw) {
-			DrawText("Draw", 400, 400, FONT_SIZE*4, WHITE);
-		} else if (board.isCheckmate) {
-			DrawText("Checkmate", 400, 400, FONT_SIZE*4, WHITE);
+		// Draw taken pieces
+		auto& pieceCount = board.pieceCount;
+		int pieceX = ORIGIN + 60;
+		DrawText("Black", ORIGIN, 10, MEDIUM_FONT, WHITE);
+		for (const char piece : White::pieces) {
+			int whiteCount = pieceCount[piece];
+			const int blackCount = pieceCount[piece + 0x20];
+			while (whiteCount++ < blackCount) {
+				DrawTextureEx(pieces[piece], Vector2(pieceX += 14, 6), 0, 0.2, WHITE);
+			}
 		}
 
-		DrawTexture(wabbit, 1000, 100, WHITE);
+		pieceX = ORIGIN + 60;
+		DrawText("White", ORIGIN, 670, MEDIUM_FONT, WHITE);
+		for (const char piece : Black::pieces) {
+			int blackCount = pieceCount[piece];
+			const int whiteCount = pieceCount[piece - 0x20];
+			while (blackCount++ < whiteCount) {
+				DrawTextureEx(pieces[piece], Vector2(pieceX += 14, 670), 0, 0.2, WHITE);
+			}
+		}
+
+
+		// Draw other buttons and text
+		DrawRectangleRounded(newGameButton, 0.75, 10, BROWN);
+		DrawRectangleRoundedLinesEx(newGameButton, 0.75, 10, 3, DARKBROWN);
+		DrawText("New Game", newGameButton.x + 10, newGameButton.y + MEDIUM_FONT / 2 - 8, MEDIUM_FONT, WHITE);
+
+		string promotionText = "Next pawn promotes to: ";
+		switch (promotionPiece) {
+			case 'Q': promotionText += "Queen"; break;
+			case 'R': promotionText += "Rook"; break;
+			case 'N': promotionText += "Knight"; break;
+			case 'B': promotionText += "Bishop"; break;
+		}
+		DrawText(promotionText.c_str(), notationRect.x + 10, 675, SMALL_FONT, WHITE);
+		DrawText("Press Q/R/N/B to change", notationRect.x + 10, 695, SMALL_FONT, WHITE);
+
+
+		if (board.isDraw) {
+			if (!backPressed) currentScreen = Screens::DRAW;
+			DrawText("Draw", 1090, (GetScreenHeight() - LARGE_FONT) / 2, LARGE_FONT, WHITE);
+		} else if (board.isCheckmate) {
+			if (!backPressed) currentScreen = Screens::CHECKMATE;
+			DrawText("Checkmate", 1030, (GetScreenHeight() - LARGE_FONT) / 2, LARGE_FONT, WHITE);
+		}
 		
 		// end the frame and get ready for the next one  (display frame, poll input, etc...)
 		EndDrawing();
 	}
 
 	// cleanup
-	// unload our texture so it can be cleaned up
-	UnloadTexture(wabbit);
-	
 	for (map<char, Texture>::iterator it = pieces.begin(); it != pieces.end(); it++) {
 		UnloadTexture(it->second);
 	}

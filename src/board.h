@@ -4,7 +4,6 @@
 #include <array>
 #include <vector>
 #include <string>
-#include <unordered_map>
 
 using namespace std;
 
@@ -17,15 +16,19 @@ public:
 	vector<BoardState> previousMoves;
 	bool isDraw = false;
 	bool isCheckmate = false;
+	bool botGame = false;
 	int lastIrreversibleMove = 0;
+	unordered_map<char, int> pieceCount;
 
 	chessBoard();
-	void newGame();
+	void newGame(bool);
 	void playMove(int, int, char);
 	void changePlayer();
 	vector<pair<int, int>> getValidMovesFromPosition(int, int);
 	bool isWhite() const;
 	bool isBlack() const;
+	void countPieces();
 private:
 	void playMove(int, int, int, int);
+	void playBotMove();
 };

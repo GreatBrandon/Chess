@@ -15,7 +15,7 @@ void Engine::generateLegalMoves(BoardState& state) {
 
     for (int row = 0; row < 8; row++) {
         for (int col = 0; col < 8; col++) {
-            char piece = state.board[row][col];
+            const char piece = state.board[row][col];
             this->sRow = row;
             this->sCol = col;
             if (state.isWhite and isWhitePiece(piece)) {
@@ -125,7 +125,7 @@ void Engine::generateLegalMovesKing(BoardState& state) {
         if (isKingInCheck(state.board, state.isWhite, true)) return;
     }
 
-    string move = string();
+    auto move = string();
     auto tempState(state);
     auto &tempBoard = tempState.board;
 
@@ -274,8 +274,8 @@ void Engine::checkMate(BoardState& state, BoardState& tempState, string& move) {
     if (!state.isInCheck) {
         tempState.isInCheck = true;
         tempState.isWhite = !tempState.isWhite;
-        int tempSRow = sRow;
-        int tempSCol = sCol;
+        const int tempSRow = sRow;
+        const int tempSCol = sCol;
         generateLegalMoves(tempState);
         sRow = tempSRow;
         sCol = tempSCol;
@@ -341,9 +341,9 @@ bool Engine::isKingInCheck(array<array<char, 8>, 8> &board, bool isWhite, bool c
         if (actuallyCheckIsKingInCheck(checkWhite, board[row][col], false)) return true;
         break;
     }
-    for (auto const& offset : knightOffsets) {
-        const int row = kRow + offset.first;
-        const int col = kCol + offset.second;
+    for (auto const& [oRow, oCol] : knightOffsets) {
+        const int row = kRow + oRow;
+        const int col = kCol + oCol;
         if (row >= 0 && row < 8 && col >= 0 && col < 8) {
             if ((checkWhite && board[row][col] == Black::KNIGHT) || (!checkWhite && board[row][col] == White::KNIGHT)) return true;
         }
@@ -356,7 +356,7 @@ bool Engine::isKingInCheck(array<array<char, 8>, 8> &board, bool isWhite, bool c
     return false;
 }
 
-bool Engine::actuallyCheckIsKingInCheck(bool checkWhite, char p, bool rookMode) const {
+bool Engine::actuallyCheckIsKingInCheck(const bool checkWhite, const char p, const bool rookMode) const {
     const char p1 = checkWhite ? rookMode ? Black::ROOK : Black::BISHOP : rookMode ? White::ROOK : White::BISHOP;
     if (p == p1 || (checkWhite && p == Black::QUEEN) || (!checkWhite && p == White::QUEEN)) return true;
     return false;
@@ -394,4 +394,8 @@ void Engine::disambiguateMoves(BoardState& state) {
         }
     }
     state.ambigiousMoves.clear();
+}
+
+void Engine::playBotMove() {
+
 }

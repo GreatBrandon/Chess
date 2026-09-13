@@ -2,7 +2,6 @@
 
 #include "common.h"
 #include <array>
-#include <unordered_map>
 #include <string>
 
 using namespace std;
@@ -11,6 +10,7 @@ class Engine {
 public:
 	void generateLegalMoves(BoardState&);
 	Engine();
+	void playBotMove();
 private:
 	int sRow = -1;
 	int sCol = -1;

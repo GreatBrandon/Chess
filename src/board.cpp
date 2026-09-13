@@ -1,45 +1,20 @@
 #include "board.h"
 #include <iostream>
 #include <map>
+#include <random>
 
 chessBoard::chessBoard() {
-    newGame();
-
-    // for testing
-    //board = {
-    //{
-    //    {{' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '}},
-    //    {{'k', ' ', ' ', 'p', ' ', ' ', ' ', ' '}},
-    //    {{' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '}},
-    //    {{' ', 'b', ' ', 'Q', 'R', ' ', ' ', ' '}},
-    //    {{' ', ' ', 'p', ' ', ' ', 'p', ' ', 'p'}},
-    //    {{' ', ' ', ' ', ' ', 'N', ' ', ' ', ' '}},
-    //    {{' ', ' ', ' ', ' ', ' ', ' ', 'P', ' '}},
-    //    {{' ', 'K', ' ', ' ', ' ', ' ', ' ', ' '}}
-    //}
-    //};
-    //board = { {
-    //    { { 'r', 'r', ' ', ' ', 'k', ' ', ' ', 'r' } },
-    //    { {'P', ' ', 'P', ' ', ' ', ' ', ' ', ' '} },
-    //    { {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '} },
-    //    { {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '} },
-    //    { {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '} },
-    //    { {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '} },
-    //    { {' ', ' ', 'P', ' ', 'P', ' ', ' ', ' '} },
-    //    { {'R', ' ', 'P', 'K', 'P', ' ', ' ', 'R'} }
-    //} };
-    //boardState.board = board;
-    //previousMoves.clear();
-    //previousMoves.push_back(boardState);
-    //boardState.legalMoves = engine.generateLegalMoves(boardState);
+    newGame(false);
 }
 
-void chessBoard::newGame() {
+void chessBoard::newGame(bool botGame) {
     board = START_BOARD;
+    pieceCount.clear();
     moves.clear();
     boardState = BoardState();
     isDraw = false;
     isCheckmate = false;
+    this->botGame = botGame;
     lastIrreversibleMove = 0;
     engine.generateLegalMoves(boardState);
     previousMoves.clear();
@@ -142,6 +117,7 @@ void chessBoard::playMove(int start, int end, char promotionPiece) {
             }
 
             changePlayer();
+            countPieces();
             return;
         }
     }
@@ -162,6 +138,10 @@ void chessBoard::changePlayer() {
     } else if (isDraw) {
         boardState.legalMoves.clear();
     }
+
+    if (botGame && !boardState.isWhite) {
+        playBotMove();
+    }
 }
 
 vector<pair<int, int>> chessBoard::getValidMovesFromPosition(int sRow, int sCol) {
@@ -180,4 +160,31 @@ bool chessBoard::isWhite() const {
 
 bool chessBoard::isBlack() const {
     return !boardState.isWhite;
+}
+
+void chessBoard::playBotMove() {
+    if (boardState.legalMoves.empty()) return;
+    random_device rd;
+    mt19937 gen(rd());
+
+    auto it = boardState.legalMoves.begin();
+    advance(it, uniform_int_distribution<size_t>(
+        0, boardState.legalMoves.size() - 1
+    )(gen));
+    auto& notation = it->first;
+    auto& move = it->second;
+    const int start = move.sRow * 8 + move.sCol;
+    const int end = move.eRow * 8 + move.eCol;
+    const char promotionPiece = notation.find('=') != string::npos ? notation[notation.find('=') + 1] : 'Q';
+    playMove(start, end, promotionPiece);
+}
+
+void chessBoard::countPieces() {
+    pieceCount.clear();
+    for (auto& row : board) {
+        for (char& piece : row) {
+            if (piece == ' ') continue;
+            ++pieceCount[piece];
+        }
+    }
 }
