@@ -28,7 +28,7 @@ constexpr int NOTATION_ROW_HEIGHT = MEDIUM_FONT + 2;
 
 int main() {
 	auto currentScreen = Screens::MENU;
-	auto board = chessBoard();
+	auto game = chessGame();
 
 	SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_HIGHDPI | FLAG_WINDOW_ALWAYS_RUN);
 	InitWindow(1280, 720, "Chess");
@@ -74,19 +74,21 @@ int main() {
 	vector<pair<int, int>> validMoves;
 	char promotionPiece = 'Q';
 	bool backPressed = false;
+	bool showEval = false;
 
 	// Game loop
 	while (!WindowShouldClose()) {
+		auto const& board = game.boardState.board;
 		// Check inputs
 		if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
 			Vector2 mousePos = GetMousePosition();
 			if (currentScreen == Screens::MENU) {
 				if (CheckCollisionPointRec(mousePos, singlePlayerButton)) {
-					board.newGame(true);
+					game.newGame(true);
 					currentScreen = Screens::SINGLE_PLAYER;
 				}
 				if (CheckCollisionPointRec(mousePos, doublePlayerButton)) {
-					board.newGame(false);
+					game.newGame(false);
 					currentScreen = Screens::TWO_PLAYER;
 				}
 				if (CheckCollisionPointRec(mousePos, onlinePlayButton)) {
@@ -100,14 +102,14 @@ int main() {
 				}
 			} else {
 				if (CheckCollisionPointRec(mousePos, newGameButton)) currentScreen = Screens::MENU;
-				if (!board.isDraw && !board.isCheckmate) {
+				if (!game.isDraw && !game.isCheckmate) {
 					for (int row = 0; row < 8; row++) {
 						for (int col = 0; col < 8; col++) {
 							if (CheckCollisionPointRec(mousePos, rects[row][col]) &&
-								((board.isWhite() && isWhitePiece(board.board[row][col]))
-									|| (board.isBlack() && isBlackPiece(board.board[row][col])))) {
+								((game.isWhite() && isWhitePiece(board[row][col]))
+									|| (game.isBlack() && isBlackPiece(board[row][col])))) {
 								selectedRect = row * 8 + col;
-								validMoves = board.getValidMovesFromPosition(row, col);
+								validMoves = game.getValidMovesFromPosition(row, col);
 							}
 						}
 					}
@@ -118,23 +120,24 @@ int main() {
 				Vector2 mousePos = GetMousePosition();
 				for (int row = 0; row < 8; row++) {
 					for (int col = 0; col < 8; col++) {
-						if (CheckCollisionPointRec(mousePos, rects[row][col]) && ((board.isWhite() && !isWhitePiece(board.board[row][col])) || (board.isBlack() && !isBlackPiece(board.board[row][col])))) {
+						if (CheckCollisionPointRec(mousePos, rects[row][col]) && ((game.isWhite() && !isWhitePiece(board[row][col])) || (game.isBlack() && !isBlackPiece(board[row][col])))) {
 							droppedRect = row * 8 + col;
 						}
 					}
 				}
 				if (droppedRect != -1 && droppedRect != selectedRect) {
-					board.playMove(selectedRect, droppedRect, promotionPiece);
+					game.playMove(selectedRect, droppedRect, promotionPiece);
 				}
 				droppedRect = -1;
 				selectedRect = -1;
 			}
 		}
-		if (IsKeyPressed(KEY_B)) promotionPiece = 'B';
+		if (IsKeyDown(KEY_B)) promotionPiece = 'B';
 		else if (IsKeyDown(KEY_N)) promotionPiece = 'N';
 		else if (IsKeyDown(KEY_R)) promotionPiece = 'R';
 		else if (IsKeyDown(KEY_Q)) promotionPiece = 'Q';
-
+		else if (IsKeyDown(KEY_E)) showEval = true;
+		else if (IsKeyUp(KEY_E)) showEval = false;
 		// drawing
 		BeginDrawing();
 
@@ -153,7 +156,7 @@ int main() {
 			EndDrawing();
 			continue;
 		} else if (currentScreen == Screens::DRAW || currentScreen == Screens::CHECKMATE) {
-			const char* text = currentScreen == Screens::DRAW ? "Game ended in a draw!" : board.boardState.isWhite ? "White won!" : "Black won!";
+			const char* text = currentScreen == Screens::DRAW ? "Game ended in a draw!" : game.boardState.isWhite ? "White won!" : "Black won!";
 			const int textWidth = MeasureText(text, LARGE_FONT);
 			DrawText(text, (GetScreenWidth() - textWidth) / 2, (GetScreenHeight() - LARGE_FONT) / 2, LARGE_FONT, WHITE);
 			DrawRectangleRounded(backToGameButton, 0.2, 10, BROWN);
@@ -178,13 +181,12 @@ int main() {
 			}
 		}
 
-		auto const& b = board.board;
 		for (int row = 0; row < 8; row++) {
 			for (int col = 0; col < 8; col++) {
 				if (row * 8 + col == selectedRect) {
 					continue;
 				} else {
-					DrawTextureEx(pieces[b[row][col]], Vector2(ORIGIN + SIZE * col, ORIGIN + SIZE * row), 0, 0.5, WHITE);
+					DrawTextureEx(pieces[board[row][col]], Vector2(ORIGIN + SIZE * col, ORIGIN + SIZE * row), 0, 0.5, WHITE);
 				}
 			}
 		}
@@ -198,11 +200,11 @@ int main() {
 			Vector2 pos = GetMousePosition();
 			pos.x -= SIZE / 2;
 			pos.y -= SIZE / 2;
-			DrawTextureEx(pieces[b[selectedRect / 8][selectedRect % 8]], pos, 0, 0.5, WHITE);
+			DrawTextureEx(pieces[board[selectedRect / 8][selectedRect % 8]], pos, 0, 0.5, WHITE);
 		}
 
 		// Draw Player turn
-		string text = (board.isWhite() ? "White" : "Black");
+		string text = (game.isWhite() ? "White" : "Black");
 		text += " to play";
 		DrawText(text.c_str(), notationRect.x + 10, ORIGIN - MEDIUM_LARGE_FONT - 2, MEDIUM_LARGE_FONT, WHITE);
 
@@ -214,29 +216,29 @@ int main() {
 
 		BeginScissorMode(notationRect.x, notationRect.y, notationRect.width, notationRect.height);
 
-		const int totalRows = (board.moves.size() + 1) / 2;
+		const int totalRows = (game.moves.size() + 1) / 2;
 
 		if (totalRows > NOTATION_ROWS) {
 			startRow -= (totalRows - NOTATION_ROWS) * NOTATION_ROW_HEIGHT;
 		}
 
-		for (int i = 0; i < board.moves.size(); i++) {
+		for (int i = 0; i < game.moves.size(); i++) {
 			const int row = startRow + i / 2 * NOTATION_ROW_HEIGHT;
 			if (row < notationRect.y) continue;
 			if (i % 2 == 0) {
 				string numText = to_string(i / 2 + 1);
 				numText += '.';
 				DrawText(numText.c_str(), notationRect.x + 10, row, MEDIUM_FONT, WHITE);
-				DrawText(board.moves[i].c_str(), notationRect.x + 60, row, MEDIUM_FONT, WHITE);
+				DrawText(game.moves[i].c_str(), notationRect.x + 60, row, MEDIUM_FONT, WHITE);
 			} else {
-				DrawText(board.moves[i].c_str(), notationRect.x + 170, row, MEDIUM_FONT, WHITE);
+				DrawText(game.moves[i].c_str(), notationRect.x + 170, row, MEDIUM_FONT, WHITE);
 			}
 		}
 
 		EndScissorMode();
 
 		// Draw taken pieces
-		auto& pieceCount = board.pieceCount;
+		auto& pieceCount = game.pieceCount;
 		int pieceX = ORIGIN + 60;
 		DrawText("Black", ORIGIN, 10, MEDIUM_FONT, WHITE);
 		for (const char piece : White::pieces) {
@@ -274,12 +276,18 @@ int main() {
 		DrawText("Press Q/R/N/B to change", notationRect.x + 10, 695, SMALL_FONT, WHITE);
 
 
-		if (board.isDraw) {
+		if (game.isDraw) {
 			if (!backPressed) currentScreen = Screens::DRAW;
 			DrawText("Draw", 1090, (GetScreenHeight() - LARGE_FONT) / 2, LARGE_FONT, WHITE);
-		} else if (board.isCheckmate) {
+		} else if (game.isCheckmate) {
 			if (!backPressed) currentScreen = Screens::CHECKMATE;
 			DrawText("Checkmate", 1030, (GetScreenHeight() - LARGE_FONT) / 2, LARGE_FONT, WHITE);
+		}
+
+		if (showEval) {
+			DrawText(to_string((double) game.boardState.evaluation / 100).c_str(), 1150, newGameButton.y - 30, SMALL_FONT, WHITE);
+		} else {
+			DrawText("Hold E to show evaluation", 1020, newGameButton.y - 30, SMALL_FONT, WHITE);
 		}
 		
 		// end the frame and get ready for the next one  (display frame, poll input, etc...)

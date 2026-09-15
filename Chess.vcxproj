@@ -305,10 +305,12 @@
     <ClInclude Include="src\board.h" />
     <ClInclude Include="src\common.h" />
     <ClInclude Include="src\engine.h" />
+    <ClInclude Include="src\evaluate.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\board.cpp" />
     <ClCompile Include="src\engine.cpp" />
+    <ClCompile Include="src\evaluate.cpp" />
     <ClCompile Include="src\main.cpp" />
   </ItemGroup>
   <ItemGroup>

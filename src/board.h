@@ -7,9 +7,8 @@
 
 using namespace std;
 
-class chessBoard {
+class chessGame {
 public:
-	array<array<char, 8>, 8> board;
 	Engine engine = Engine();
 	vector<string> moves;
 	BoardState boardState;
@@ -20,7 +19,7 @@ public:
 	int lastIrreversibleMove = 0;
 	unordered_map<char, int> pieceCount;
 
-	chessBoard();
+	chessGame();
 	void newGame(bool);
 	void playMove(int, int, char);
 	void changePlayer();

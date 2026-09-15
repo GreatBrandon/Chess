@@ -1,4 +1,5 @@
 #include "engine.h"
+#include "evaluate.h"
 
 const array<pair<int, int>, 8> knightOffsets = { {
     {-2, -1}, {-2, 1},
@@ -143,7 +144,7 @@ void Engine::generateLegalMovesKing(BoardState& state) {
                 if (isKingInCheck(tempBoard, state.isWhite, false)) {
                     checkMate(state, tempState, move);
                 }
-                state.legalMoves[move] = Move(sRow, sCol, sRow, 6);
+                state.legalMoves[move] = Move(sRow, sCol, sRow, 6, evaluatePosition(tempState));
             }
         }
     }
@@ -161,7 +162,7 @@ void Engine::generateLegalMovesKing(BoardState& state) {
                 if (isKingInCheck(tempBoard, state.isWhite, false)) {
                     checkMate(state, tempState, move);
                 }
-                state.legalMoves[move] = Move(sRow, sCol, sRow, 2);
+                state.legalMoves[move] = Move(sRow, sCol, sRow, 2, evaluatePosition(tempState));
             }
         }
     }
@@ -238,7 +239,7 @@ bool Engine::addMove(BoardState& state, int eRow, int eCol) {
                 if (isKingInCheck(tempBoard, state.isWhite, false)) {
                     checkMate(state, tempState, m);
                 }
-                state.legalMoves[m] = Move(sRow, sCol, eRow, eCol);
+                state.legalMoves[m] = Move(sRow, sCol, eRow, eCol, evaluatePosition(tempState));
             }
         }
         return false;
@@ -261,9 +262,9 @@ bool Engine::addMove(BoardState& state, int eRow, int eCol) {
             if (!state.ambigiousMoves.contains(move)) {
                 state.ambigiousMoves[move].push_back(state.legalMoves[move]);
             }
-            state.ambigiousMoves[move].push_back(Move(sRow, sCol, eRow, eCol));
+            state.ambigiousMoves[move].push_back(Move(sRow, sCol, eRow, eCol, evaluatePosition(tempState)));
         }
-        state.legalMoves[move] = Move(sRow, sCol, eRow, eCol);
+        state.legalMoves[move] = Move(sRow, sCol, eRow, eCol, evaluatePosition(tempState));
     }
 
     if (end != ' ') return true;
@@ -273,7 +274,7 @@ bool Engine::addMove(BoardState& state, int eRow, int eCol) {
 void Engine::checkMate(BoardState& state, BoardState& tempState, string& move) {
     if (!state.isInCheck) {
         tempState.isInCheck = true;
-        tempState.isWhite = !tempState.isWhite;
+        tempState.isWhite = !state.isWhite;
         const int tempSRow = sRow;
         const int tempSCol = sCol;
         generateLegalMoves(tempState);

@@ -2,13 +2,14 @@
 #include <iostream>
 #include <map>
 #include <random>
+#include "evaluate.h"
 
-chessBoard::chessBoard() {
+chessGame::chessGame() {
     newGame(false);
 }
 
-void chessBoard::newGame(bool botGame) {
-    board = START_BOARD;
+void chessGame::newGame(bool botGame) {
+    //board = START_BOARD;
     pieceCount.clear();
     moves.clear();
     boardState = BoardState();
@@ -21,11 +22,13 @@ void chessBoard::newGame(bool botGame) {
     previousMoves.push_back(boardState);
 }
 
-void chessBoard::playMove(int start, int end, char promotionPiece) {
+void chessGame::playMove(int start, int end, char promotionPiece) {
     const int sRow = start / 8;
     const int sCol = start % 8;
     const int eRow = end / 8;
     const int eCol = end % 8;
+
+    auto& board = boardState.board;
 
     for (auto const& [notation, move] : boardState.legalMoves) {
         if (move.sRow == sRow && move.sCol == sCol && move.eRow == eRow && move.eCol == eCol) {
@@ -93,7 +96,6 @@ void chessBoard::playMove(int start, int end, char promotionPiece) {
             }
 
             moves.push_back(notation);
-            previousMoves.push_back(boardState);
 
             // Checkmate
             if (notation.ends_with('#')) {
@@ -113,9 +115,11 @@ void chessBoard::playMove(int start, int end, char promotionPiece) {
                     cout << "DRAW BY REPETITION" << endl;
                     isDraw = true;
                     // TODO add castling and en passant checks to this to fully satisfy FIDE rules
+                    // Use zobrist hash for this
                 }
             }
 
+            boardState.evaluation = move.evaluation;
             changePlayer();
             countPieces();
             return;
@@ -123,15 +127,16 @@ void chessBoard::playMove(int start, int end, char promotionPiece) {
     }
 }
 
-void chessBoard::playMove(int sRow, int sCol, int eRow, int eCol) {
-    board[eRow][eCol] = board[sRow][sCol];
-    board[sRow][sCol] = ' ';
-    boardState.board = board;
+void chessGame::playMove(int sRow, int sCol, int eRow, int eCol) {
+    boardState.board[eRow][eCol] = boardState.board[sRow][sCol];
+    boardState.board[sRow][sCol] = ' ';
 }
 
-void chessBoard::changePlayer() {
+void chessGame::changePlayer() {
     boardState.isWhite = !boardState.isWhite;
     engine.generateLegalMoves(boardState);
+    previousMoves.push_back(boardState);
+
     if (boardState.legalMoves.size() == 0) {
         cout << "DRAW BY STALEMATE" << endl;
         isDraw = true;
@@ -139,12 +144,14 @@ void chessBoard::changePlayer() {
         boardState.legalMoves.clear();
     }
 
+    evaluatePosition(boardState);
+
     if (botGame && !boardState.isWhite) {
         playBotMove();
     }
 }
 
-vector<pair<int, int>> chessBoard::getValidMovesFromPosition(int sRow, int sCol) {
+vector<pair<int, int>> chessGame::getValidMovesFromPosition(int sRow, int sCol) {
     vector<pair<int, int>> validMoves;
     for (auto const& [notation, move] : boardState.legalMoves) {
         if (move.sRow == sRow && move.sCol == sCol) {
@@ -154,34 +161,33 @@ vector<pair<int, int>> chessBoard::getValidMovesFromPosition(int sRow, int sCol)
     return validMoves;
 }
 
-bool chessBoard::isWhite() const {
+bool chessGame::isWhite() const {
     return boardState.isWhite;
 }
 
-bool chessBoard::isBlack() const {
+bool chessGame::isBlack() const {
     return !boardState.isWhite;
 }
 
-void chessBoard::playBotMove() {
-    if (boardState.legalMoves.empty()) return;
-    random_device rd;
-    mt19937 gen(rd());
+void chessGame::playBotMove() {
+    Move bestMove(-1,-1,-1,-1,numeric_limits<int>::max()); // bot currently always plays as black
+    string bestMoveNotation;
+    for (const auto& [notation, move] : boardState.legalMoves) {
+        if (move.evaluation < bestMove.evaluation) {
+            bestMove = move;
+            bestMoveNotation = notation;
+        }
+    }
 
-    auto it = boardState.legalMoves.begin();
-    advance(it, uniform_int_distribution<size_t>(
-        0, boardState.legalMoves.size() - 1
-    )(gen));
-    auto& notation = it->first;
-    auto& move = it->second;
-    const int start = move.sRow * 8 + move.sCol;
-    const int end = move.eRow * 8 + move.eCol;
-    const char promotionPiece = notation.find('=') != string::npos ? notation[notation.find('=') + 1] : 'Q';
+    const int start = bestMove.sRow * 8 + bestMove.sCol;
+    const int end = bestMove.eRow * 8 + bestMove.eCol;
+    const char promotionPiece = bestMoveNotation.find('=') != string::npos ? bestMoveNotation[bestMoveNotation.find('=') + 1] : 'Q';
     playMove(start, end, promotionPiece);
 }
 
-void chessBoard::countPieces() {
+void chessGame::countPieces() {
     pieceCount.clear();
-    for (auto& row : board) {
+    for (auto& row : boardState.board) {
         for (char& piece : row) {
             if (piece == ' ') continue;
             ++pieceCount[piece];

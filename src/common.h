@@ -34,6 +34,7 @@ struct Move {
     int sCol;
     int eRow;
     int eCol;
+    int evaluation;
 
     bool operator==(const Move& other) const {
         return sRow == other.sRow 
@@ -83,6 +84,7 @@ struct BoardState {
     int enPassantRow = -1;
     int enPassantCol = -1;
     int stalemateMoveCounter = 0;
+    int evaluation = 0;
     std::unordered_map<std::string, Move> legalMoves;
     std::unordered_map<std::string, std::vector<Move>> ambigiousMoves;
 
