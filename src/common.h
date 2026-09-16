@@ -85,7 +85,7 @@ struct BoardState {
     int enPassantCol = -1;
     int stalemateMoveCounter = 0;
     int evaluation = 0;
-    std::unordered_map<std::string, Move> legalMoves;
+    std::vector<std::pair<std::string, Move>> legalMoves;
     std::unordered_map<std::string, std::vector<Move>> ambigiousMoves;
 
     BoardState(){

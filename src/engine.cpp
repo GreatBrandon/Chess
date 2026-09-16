@@ -151,7 +151,7 @@ void Engine::generateLegalMovesKing(BoardState& state) {
                 if (isKingInCheck(tempBoard, state.isWhite, false)) {
                     checkMate(state, tempState, move);
                 }
-                state.legalMoves[move] = Move(sRow, sCol, sRow, 6, evaluatePosition(tempState));
+                state.legalMoves.push_back({ move, Move(sRow, sCol, sRow, 6, evaluatePosition(tempState)) });
             }
         }
     }
@@ -169,7 +169,7 @@ void Engine::generateLegalMovesKing(BoardState& state) {
                 if (isKingInCheck(tempBoard, state.isWhite, false)) {
                     checkMate(state, tempState, move);
                 }
-                state.legalMoves[move] = Move(sRow, sCol, sRow, 2, evaluatePosition(tempState));
+                state.legalMoves.push_back({ move, Move(sRow, sCol, sRow, 2, evaluatePosition(tempState)) });
             }
         }
     }
@@ -246,7 +246,7 @@ bool Engine::addMove(BoardState& state, int eRow, int eCol) {
                 if (isKingInCheck(tempBoard, state.isWhite, false)) {
                     checkMate(state, tempState, m);
                 }
-                state.legalMoves[m] = Move(sRow, sCol, eRow, eCol, evaluatePosition(tempState));
+                state.legalMoves.push_back({ m, Move(sRow, sCol, eRow, eCol, evaluatePosition(tempState)) });
             }
         }
         return false;
@@ -265,13 +265,23 @@ bool Engine::addMove(BoardState& state, int eRow, int eCol) {
             checkMate(state, tempState, move);
         }
 
-        if (state.legalMoves.contains(move)) {
+        bool duplicate = false;
+        Move duplicateMove;
+        for (auto const& [n, m] : state.legalMoves) {
+            if (move == n) {
+                duplicate = true;
+                duplicateMove = m;
+                break;
+            }
+        }
+        if (duplicate) {
             if (!state.ambigiousMoves.contains(move)) {
-                state.ambigiousMoves[move].push_back(state.legalMoves[move]);
+                state.ambigiousMoves[move].push_back(duplicateMove);
             }
             state.ambigiousMoves[move].push_back(Move(sRow, sCol, eRow, eCol, evaluatePosition(tempState)));
+        } else {
+            state.legalMoves.push_back({ move, Move(sRow, sCol, eRow, eCol, evaluatePosition(tempState)) });
         }
-        state.legalMoves[move] = Move(sRow, sCol, eRow, eCol, evaluatePosition(tempState));
     }
 
     if (end != ' ') return true;
@@ -372,7 +382,12 @@ bool Engine::actuallyCheckIsKingInCheck(const bool checkWhite, const char p, con
 
 void Engine::disambiguateMoves(BoardState& state) {
     for (auto const&[notation, moves] : state.ambigiousMoves) {
-        state.legalMoves.erase(notation);
+        for (int i = 0; i < state.legalMoves.size(); i++) {
+            if (state.legalMoves[i].first == notation) {
+                state.legalMoves.erase(state.legalMoves.begin() + i);
+                break;
+            }
+        }
 
         for (const Move& move : moves) {
             bool fileUnique = true;
@@ -398,7 +413,7 @@ void Engine::disambiguateMoves(BoardState& state) {
                 newNotation.insert(2, 1, (char)('8' - move.sRow));
             }
 
-            state.legalMoves[newNotation] = move;
+            state.legalMoves.push_back({ newNotation, move });
         }
     }
     state.ambigiousMoves.clear();
@@ -505,6 +520,15 @@ pair<string, Move> Engine::getBestMove(BoardState& root, int depth) {
     int alpha = -INF;
     string bestMoveNotation;
 
+    // sort the initial list of moves
+    sort(root.legalMoves.begin(), root.legalMoves.end(),
+        [&](pair<string, Move> const& a, pair<string, Move> const& b) {
+            return root.isWhite
+                ? a.second.evaluation > b.second.evaluation   // White wants highest first
+                : a.second.evaluation < b.second.evaluation;  // Black wants lowest first
+        });
+    CALLCOUNT = 0;
+
     for (auto& [notation, move] : root.legalMoves) {
         auto newState(root);
 
@@ -514,15 +538,15 @@ pair<string, Move> Engine::getBestMove(BoardState& root, int depth) {
 
         int score = -alphaBeta(newState, -INF, -alpha, depth - 1);
         
-        cout << notation << ':' << score << ' ' << CALLCOUNT << endl;
-        CALLCOUNT = 0;
+        //cout << notation << ':' << CALLCOUNT << endl;
+        //CALLCOUNT = 0;
         if (score > alpha) {
             alpha = score;
             bestMove = move;
             bestMoveNotation = notation;
         }
     }
-    cout << "Best move: " << bestMoveNotation << '=' << alpha << endl;
+    cout << "Best move: " << bestMoveNotation << ", nodes checked: " << CALLCOUNT << endl;
     return { bestMoveNotation, bestMove };
 }
 
@@ -530,6 +554,15 @@ pair<string, Move> Engine::getBestMove(BoardState& root, int depth) {
 int Engine::alphaBeta(BoardState& prevState, int alpha, int beta, int depthleft) {
     CALLCOUNT++;
     if (depthleft == 0) return quiesce(prevState, alpha, beta);
+
+    if (depthleft > 1) {
+        sort(prevState.legalMoves.begin(), prevState.legalMoves.end(),
+            [&](pair<string, Move> const& a, pair<string, Move> const& b) {
+                return prevState.isWhite
+                    ? a.second.evaluation > b.second.evaluation   // White wants highest first
+                    : a.second.evaluation < b.second.evaluation;  // Black wants lowest first
+            });
+    }
     int bestValue = -INF;
     for (auto& [notation, move] : prevState.legalMoves) {
         auto newState(prevState);

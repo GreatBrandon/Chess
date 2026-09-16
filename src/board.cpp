@@ -1,6 +1,8 @@
 #include "board.h"
 #include "evaluate.h"
 #include <map>
+#include <chrono>
+#include <iostream>
 
 chessGame::chessGame() {
     newGame(false);
@@ -103,9 +105,11 @@ bool chessGame::isBlack() const {
 }
 
 void chessGame::playBotMove() {
+    auto start = chrono::high_resolution_clock::now();
     auto bestMove = engine.getBestMove(boardState, engineDepth);
-    //boardState.isWhite = !boardState.isWhite;
-    //bestMove = engine.getBestMove(boardState);
+    auto end = chrono::high_resolution_clock::now();
+    auto durationMs = chrono::duration_cast<chrono::milliseconds>(end - start).count();
+    cout << "Took " << durationMs << " ms" << endl;
     auto& notation = bestMove.first;
     auto& move = bestMove.second;
     const char promotionPiece = notation.find('=') != string::npos ? notation[notation.find('=') + 1] : 'Q';

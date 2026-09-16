@@ -7,7 +7,7 @@
 
 using namespace std;
 
-constexpr int MAX_DEPTH = 5;
+constexpr int MAX_DEPTH = 6;
 constexpr int MIN_DEPTH = 2;
 
 class chessGame {
@@ -20,7 +20,7 @@ public:
 	bool isCheckmate = false;
 	bool botGame = false;
 	int lastIrreversibleMove = 0;
-	int engineDepth = 4;
+	int engineDepth = 5;
 	unordered_map<char, int> pieceCount;
 
 	chessGame();
