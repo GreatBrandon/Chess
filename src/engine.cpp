@@ -1,12 +1,19 @@
 #include "engine.h"
 #include "evaluate.h"
+#include <iostream>
+#include <algorithm>
 
-const array<pair<int, int>, 8> knightOffsets = { {
+constexpr array<pair<int, int>, 8> knightOffsets = { {
     {-2, -1}, {-2, 1},
     {-1, -2}, {-1, 2},
     {1, -2}, {1, 2},
     {2, -1}, {2, 1}
 } };
+
+constexpr int INF = 1000000000;
+constexpr int CHECKMATE_EVAL = 100000;
+constexpr int CHECKMATE_OFFSET = 100;
+int CALLCOUNT = 0;
 
 Engine::Engine() {};
 
@@ -397,6 +404,148 @@ void Engine::disambiguateMoves(BoardState& state) {
     state.ambigiousMoves.clear();
 }
 
-void Engine::playBotMove() {
+void Engine::playMove(BoardState& boardState, const string& notation, const Move& move) {
+    auto& board = boardState.board;
+    const int sRow = move.sRow;
+    const int sCol = move.sCol;
+    const int eRow = move.eRow;
+    const int eCol = move.eCol;
+    int evaluation = move.evaluation;
+    // 50 move rule
+    if (board[eRow][eCol] != ' ' || board[sRow][sCol] == White::PAWN || board[sRow][sCol] == Black::PAWN) {
+        boardState.stalemateMoveCounter = 0;
+        //lastIrreversibleMove = previousMoves.size();
+    } else boardState.stalemateMoveCounter++;
 
+    // Remove castling rights
+    if (board[sRow][sCol] == White::KING) {
+        boardState.whiteCanLongCastle = false;
+        boardState.whiteCanShortCastle = false;
+    }
+    if (board[sRow][sCol] == Black::KING) {
+        boardState.blackCanLongCastle = false;
+        boardState.blackCanShortCastle = false;
+    }
+    if ((sRow == 7 && sCol == 0 && board[sRow][sCol] == White::ROOK)
+        || (eRow == 7 && eCol == 0 && board[eRow][eCol] == White::ROOK)) {
+        boardState.whiteCanLongCastle = false;
+    }
+    if ((sRow == 7 && sCol == 7 && board[sRow][sCol] == White::ROOK)
+        || (eRow == 7 && eCol == 7 && board[eRow][eCol] == White::ROOK)) {
+        boardState.whiteCanShortCastle = false;
+    }
+    if ((sRow == 0 && sCol == 0 && board[sRow][sCol] == Black::ROOK)
+        || (eRow == 0 && eCol == 0 && board[eRow][eCol] == Black::ROOK)) {
+        boardState.blackCanLongCastle = false;
+    }
+    if ((sRow == 0 && sCol == 7 && board[sRow][sCol] == Black::ROOK)
+        || (eRow == 0 && eCol == 7 && board[eRow][eCol] == Black::ROOK)) {
+        boardState.blackCanShortCastle = false;
+    }
+
+    // En passant
+    if (board[sRow][sCol] == White::PAWN && sRow - eRow == 2) {
+        boardState.enPassantCol = eCol;
+        boardState.enPassantRow = sRow - 1;
+    } else if (board[sRow][sCol] == Black::PAWN && eRow - sRow == 2) {
+        boardState.enPassantCol = eCol;
+        boardState.enPassantRow = eRow - 1;
+    } else {
+        if (eRow == boardState.enPassantRow && eCol == boardState.enPassantCol) board[sRow][eCol] = ' ';
+        boardState.enPassantCol = -1;
+        boardState.enPassantRow = -1;
+    }
+
+    board[eRow][eCol] = board[sRow][sCol];
+    board[sRow][sCol] = ' ';
+
+    // Pawn promotion
+    if (board[eRow][eCol] == White::PAWN && eRow == 0) {
+        board[eRow][eCol] = notation[notation.find('=') + 1];
+    } else if (board[eRow][eCol] == Black::PAWN && eRow == 7) {
+        board[eRow][eCol] = notation[notation.find('=') + 1] + 0x20;
+    }
+
+    // Castle
+    if (notation.starts_with("O-O-O")) {
+        board[sRow][3] = board[sRow][0];
+        board[sRow][0] = ' ';
+    } else if (notation.starts_with("O-O")) {
+        board[sRow][5] = board[sRow][7];
+        board[sRow][7] = ' ';
+    }
+
+
+    // Checkmate
+    if (notation.ends_with('#')) {
+        if (boardState.isWhite) evaluation = CHECKMATE_EVAL;
+        else evaluation = -CHECKMATE_EVAL;
+    } else {
+        // Check stalemate
+        if (boardState.stalemateMoveCounter == 100) {
+            evaluation = 0;
+        }
+    }
+
+    
+    //map<array<array<char, 8>, 8>, int> previousPositions;
+    //for (int i = lastIrreversibleMove; i < previousMoves.size(); i++) {
+    //    if (++previousPositions[previousMoves[i].board] == 3) {
+    //        isDraw = true;
+    //        // TODO add castling and en passant checks to this to fully satisfy FIDE rules
+    //        // Use zobrist hash for this
+    //    }
+    //}
+
+    boardState.evaluation = evaluation;
+}
+
+pair<string, Move> Engine::getBestMove(BoardState& root, int depth) {
+    Move bestMove(-1,-1,-1,-1,-1);
+    int alpha = -INF;
+    string bestMoveNotation;
+
+    for (auto& [notation, move] : root.legalMoves) {
+        auto newState(root);
+
+        playMove(newState, notation, move);
+        newState.isWhite = !root.isWhite;
+        generateLegalMoves(newState);
+
+        int score = -alphaBeta(newState, -INF, -alpha, depth - 1);
+        
+        cout << notation << ':' << score << ' ' << CALLCOUNT << endl;
+        CALLCOUNT = 0;
+        if (score > alpha) {
+            alpha = score;
+            bestMove = move;
+            bestMoveNotation = notation;
+        }
+    }
+    cout << "Best move: " << bestMoveNotation << '=' << alpha << endl;
+    return { bestMoveNotation, bestMove };
+}
+
+// Using negamax
+int Engine::alphaBeta(BoardState& prevState, int alpha, int beta, int depthleft) {
+    CALLCOUNT++;
+    if (depthleft == 0) return quiesce(prevState, alpha, beta);
+    int bestValue = -INF;
+    for (auto& [notation, move] : prevState.legalMoves) {
+        auto newState(prevState);
+        playMove(newState, notation, move);
+        newState.isWhite = !prevState.isWhite;
+        if (depthleft - 1 > 0) generateLegalMoves(newState);
+        const int score = -alphaBeta(newState, -beta, -alpha, depthleft - 1);
+        if (score > bestValue) {
+            bestValue = score;
+            if (score > alpha) alpha = score; // alpha acts like max in MiniMax
+        }
+        if (score >= beta) return bestValue;   //  fail soft beta-cutoff, existing the loop here is also fine
+    }
+    return bestValue;
+}
+
+int Engine::quiesce(BoardState& prevState, int alpha, int beta) {
+    return prevState.isWhite ? prevState.evaluation : -prevState.evaluation;
 }

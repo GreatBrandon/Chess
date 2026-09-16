@@ -103,7 +103,8 @@ struct BoardState {
         isInCheck(other.isInCheck),
         enPassantRow(other.enPassantRow),
         enPassantCol(other.enPassantCol),
-        stalemateMoveCounter(other.stalemateMoveCounter)
+        stalemateMoveCounter(other.stalemateMoveCounter),
+        evaluation(other.evaluation)
     {
         legalMoves.reserve(64);
         ambigiousMoves.reserve(8);
@@ -120,6 +121,7 @@ struct BoardState {
         enPassantRow = other.enPassantRow;
         enPassantCol = other.enPassantCol;
         stalemateMoveCounter = other.stalemateMoveCounter;
+        evaluation = other.evaluation;
 
         legalMoves.clear();
         ambigiousMoves.clear();

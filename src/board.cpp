@@ -1,15 +1,12 @@
 #include "board.h"
-#include <iostream>
-#include <map>
-#include <random>
 #include "evaluate.h"
+#include <map>
 
 chessGame::chessGame() {
     newGame(false);
 }
 
 void chessGame::newGame(bool botGame) {
-    //board = START_BOARD;
     pieceCount.clear();
     moves.clear();
     boardState = BoardState();
@@ -27,109 +24,46 @@ void chessGame::playMove(int start, int end, char promotionPiece) {
     const int sCol = start % 8;
     const int eRow = end / 8;
     const int eCol = end % 8;
+    playMove(sRow, sCol, eRow, eCol, promotionPiece);
+}
 
+void chessGame::playMove(int sRow, int sCol, int eRow, int eCol, char promotionPiece) {
     auto& board = boardState.board;
 
     for (auto const& [notation, move] : boardState.legalMoves) {
         if (move.sRow == sRow && move.sCol == sCol && move.eRow == eRow && move.eCol == eCol) {
             if (notation.find('=') != string::npos && notation[notation.find('=') + 1] != promotionPiece) continue;
 
-            // 50 move rule
-            if (board[eRow][eCol] != ' ' || board[sRow][sCol] == White::PAWN || board[sRow][sCol] == Black::PAWN) {
-                boardState.stalemateMoveCounter = 0;
-                lastIrreversibleMove = previousMoves.size();
-            } else boardState.stalemateMoveCounter++;
+            engine.playMove(boardState, notation, move);
 
-            // Remove castling rights
-            if (board[sRow][sCol] == White::KING) {
-                boardState.whiteCanLongCastle = false;
-                boardState.whiteCanShortCastle = false;
-            }
-            if (board[sRow][sCol] == Black::KING) {
-                boardState.blackCanLongCastle = false;
-                boardState.blackCanShortCastle = false;
-            }
-            if ((sRow == 7 && sCol == 0 && board[sRow][sCol] == White::ROOK)
-                || (eRow == 7 && eCol == 0 && board[eRow][eCol] == White::ROOK)) {
-                boardState.whiteCanLongCastle = false;
-            }
-            if ((sRow == 7 && sCol == 7 && board[sRow][sCol] == White::ROOK)
-                || (eRow == 7 && eCol == 7 && board[eRow][eCol] == White::ROOK)) {
-                boardState.whiteCanShortCastle = false;
-            }
-            if ((sRow == 0 && sCol == 0 && board[sRow][sCol] == Black::ROOK)
-                || (eRow == 0 && eCol == 0 && board[eRow][eCol] == Black::ROOK)) {
-                boardState.blackCanLongCastle = false;
-            }
-            if ((sRow == 0 && sCol == 7 && board[sRow][sCol] == Black::ROOK)
-                || (eRow == 0 && eCol == 7 && board[eRow][eCol] == Black::ROOK)) {
-                boardState.blackCanShortCastle = false;
-            }
-
-            // En passant
-            if (board[sRow][sCol] == White::PAWN && sRow - eRow == 2) {
-                boardState.enPassantCol = eCol;
-                boardState.enPassantRow = sRow - 1;
-            } else if (board[sRow][sCol] == Black::PAWN && eRow - sRow == 2) {
-                boardState.enPassantCol = eCol;
-                boardState.enPassantRow = eRow - 1;
-            } else {
-                if (eRow == boardState.enPassantRow && eCol == boardState.enPassantCol) board[sRow][eCol] = ' ';
-                boardState.enPassantCol = -1;
-                boardState.enPassantRow = -1;
-            }
-
-            playMove(sRow, sCol, eRow, eCol);
-
-            // Pawn promotion
-            if (board[eRow][eCol] == White::PAWN && eRow == 0) {
-                board[eRow][eCol] = notation[notation.find('=') + 1];
-            } else if (board[eRow][eCol] == Black::PAWN && eRow == 7) {
-                board[eRow][eCol] = notation[notation.find('=') + 1] + 0x20;
-            }
-
-            // Castle
-            if (notation.starts_with("O-O-O")) {
-                playMove(sRow, 0, sRow, 3);
-            } else if (notation.starts_with("O-O")) {
-                playMove(sRow, 7, sRow, 5);
-            }
+            // optional optimisation for 3 time repetition
+            if (boardState.stalemateMoveCounter = 0) lastIrreversibleMove = previousMoves.size();
 
             moves.push_back(notation);
 
             // Checkmate
             if (notation.ends_with('#')) {
-                cout << "CHECKMATE" << endl;
                 isCheckmate = true;
                 return;
             }
 
             // Check stalemate
             if (boardState.stalemateMoveCounter == 100) {
-                cout << "DRAW BY 50 MOVE RULE" << endl;
                 isDraw = true;
             }
             map<array<array<char, 8>, 8>, int> previousPositions;
             for (int i = lastIrreversibleMove; i < previousMoves.size(); i++) {
                 if (++previousPositions[previousMoves[i].board] == 3) {
-                    cout << "DRAW BY REPETITION" << endl;
                     isDraw = true;
                     // TODO add castling and en passant checks to this to fully satisfy FIDE rules
                     // Use zobrist hash for this
                 }
             }
-
-            boardState.evaluation = move.evaluation;
             changePlayer();
             countPieces();
             return;
         }
     }
-}
-
-void chessGame::playMove(int sRow, int sCol, int eRow, int eCol) {
-    boardState.board[eRow][eCol] = boardState.board[sRow][sCol];
-    boardState.board[sRow][sCol] = ' ';
 }
 
 void chessGame::changePlayer() {
@@ -138,7 +72,6 @@ void chessGame::changePlayer() {
     previousMoves.push_back(boardState);
 
     if (boardState.legalMoves.size() == 0) {
-        cout << "DRAW BY STALEMATE" << endl;
         isDraw = true;
     } else if (isDraw) {
         boardState.legalMoves.clear();
@@ -170,19 +103,13 @@ bool chessGame::isBlack() const {
 }
 
 void chessGame::playBotMove() {
-    Move bestMove(-1,-1,-1,-1,numeric_limits<int>::max()); // bot currently always plays as black
-    string bestMoveNotation;
-    for (const auto& [notation, move] : boardState.legalMoves) {
-        if (move.evaluation < bestMove.evaluation) {
-            bestMove = move;
-            bestMoveNotation = notation;
-        }
-    }
-
-    const int start = bestMove.sRow * 8 + bestMove.sCol;
-    const int end = bestMove.eRow * 8 + bestMove.eCol;
-    const char promotionPiece = bestMoveNotation.find('=') != string::npos ? bestMoveNotation[bestMoveNotation.find('=') + 1] : 'Q';
-    playMove(start, end, promotionPiece);
+    auto bestMove = engine.getBestMove(boardState, engineDepth);
+    //boardState.isWhite = !boardState.isWhite;
+    //bestMove = engine.getBestMove(boardState);
+    auto& notation = bestMove.first;
+    auto& move = bestMove.second;
+    const char promotionPiece = notation.find('=') != string::npos ? notation[notation.find('=') + 1] : 'Q';
+    playMove(move.sRow, move.sCol, move.eRow, move.eCol, promotionPiece);
 }
 
 void chessGame::countPieces() {
@@ -193,4 +120,12 @@ void chessGame::countPieces() {
             ++pieceCount[piece];
         }
     }
+}
+
+void chessGame::increaseDepth() {
+    if (engineDepth < MAX_DEPTH) engineDepth++;
+}
+
+void chessGame::decreaseDepth() {
+    if (engineDepth > MIN_DEPTH) engineDepth--;
 }

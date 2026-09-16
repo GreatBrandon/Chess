@@ -7,6 +7,9 @@
 
 using namespace std;
 
+constexpr int MAX_DEPTH = 5;
+constexpr int MIN_DEPTH = 2;
+
 class chessGame {
 public:
 	Engine engine = Engine();
@@ -17,17 +20,20 @@ public:
 	bool isCheckmate = false;
 	bool botGame = false;
 	int lastIrreversibleMove = 0;
+	int engineDepth = 4;
 	unordered_map<char, int> pieceCount;
 
 	chessGame();
 	void newGame(bool);
 	void playMove(int, int, char);
+	void playMove(int, int, int, int, char);
 	void changePlayer();
 	vector<pair<int, int>> getValidMovesFromPosition(int, int);
 	bool isWhite() const;
 	bool isBlack() const;
 	void countPieces();
+	void increaseDepth();
+	void decreaseDepth();
 private:
-	void playMove(int, int, int, int);
 	void playBotMove();
 };

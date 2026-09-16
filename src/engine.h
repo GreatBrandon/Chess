@@ -10,7 +10,8 @@ class Engine {
 public:
 	void generateLegalMoves(BoardState&);
 	Engine();
-	void playBotMove();
+	void playMove(BoardState&, const string&, const Move&);
+	pair<string, Move> getBestMove(BoardState&, int);
 private:
 	int sRow = -1;
 	int sCol = -1;
@@ -26,4 +27,6 @@ private:
 	bool isKingInCheck(array<array<char, 8>, 8>&, bool, bool) const;
 	bool actuallyCheckIsKingInCheck(bool, char, bool) const;
 	void disambiguateMoves(BoardState&);
+	int alphaBeta(BoardState&, int, int, int);
+	int quiesce(BoardState&, int, int);
 };

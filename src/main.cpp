@@ -26,6 +26,10 @@ constexpr int LARGE_FONT = 40;
 constexpr int NOTATION_ROWS = 22;
 constexpr int NOTATION_ROW_HEIGHT = MEDIUM_FONT + 2;
 
+static void DrawTextCenteredHorizontally(const char* text, const int y, const int font) {
+	DrawText(text, (GetScreenWidth() - MeasureText(text, font)) / 2, y, font, WHITE);
+}
+
 int main() {
 	auto currentScreen = Screens::MENU;
 	auto game = chessGame();
@@ -59,8 +63,8 @@ int main() {
 	
 	Rectangle newGameButton = Rectangle(1080, 300, 130, 30);
 	Rectangle singlePlayerButton = Rectangle(440, 200, 400, 70);
-	Rectangle doublePlayerButton = Rectangle(440, 300, 400, 70);
-	Rectangle onlinePlayButton = Rectangle(440, 400, 400, 70);
+	Rectangle doublePlayerButton = Rectangle(440, 325, 400, 70);
+	Rectangle onlinePlayButton = Rectangle(440, 450, 400, 70);
 	Rectangle notationRect = Rectangle(700, ORIGIN + NOTATION_ROW_HEIGHT, 300, NOTATION_ROW_HEIGHT * NOTATION_ROWS + 10);
 	Rectangle roundedNotationRect = Rectangle(700, ORIGIN, 300, NOTATION_ROW_HEIGHT * (NOTATION_ROWS + 1) + 10);
 	const char* backToGameButtonText = "Back";
@@ -132,6 +136,10 @@ int main() {
 				selectedRect = -1;
 			}
 		}
+		if (currentScreen == Screens::MENU) {
+			if (IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_W)) game.increaseDepth();
+			else if (IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_S)) game.decreaseDepth();
+		}
 		if (IsKeyDown(KEY_B)) promotionPiece = 'B';
 		else if (IsKeyDown(KEY_N)) promotionPiece = 'N';
 		else if (IsKeyDown(KEY_R)) promotionPiece = 'R';
@@ -150,9 +158,13 @@ int main() {
 			DrawRectangleRounded(singlePlayerButton, 0.9f, 10, BROWN);
 			DrawRectangleRounded(doublePlayerButton, 0.9f, 10, BROWN);
 			DrawRectangleRounded(onlinePlayButton, 0.9f, 10, BROWN);
-			DrawText("Single player", 510, 215, LARGE_FONT, WHITE);
-			DrawText("Double player", 500, 315, LARGE_FONT, WHITE);
-			DrawText("Online play", 530, 415, LARGE_FONT, WHITE);
+			DrawTextCenteredHorizontally("Single player", singlePlayerButton.y + 15, LARGE_FONT);
+			DrawTextCenteredHorizontally("Double player", doublePlayerButton.y + 15, LARGE_FONT);
+			DrawTextCenteredHorizontally("Online play", onlinePlayButton.y + 15, LARGE_FONT);
+			string depthText = "Engine depth: ";
+			depthText += to_string(game.engineDepth);
+			DrawTextCenteredHorizontally(depthText.c_str(), singlePlayerButton.y + 75, MEDIUM_FONT);
+			DrawTextCenteredHorizontally("W|S to change", singlePlayerButton.y + 100, SMALL_FONT);
 			EndDrawing();
 			continue;
 		} else if (currentScreen == Screens::DRAW || currentScreen == Screens::CHECKMATE) {
