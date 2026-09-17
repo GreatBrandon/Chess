@@ -23,10 +23,11 @@ void Engine::generateLegalMoves(BoardState& state) {
 
     for (int row = 0; row < 8; row++) {
         for (int col = 0; col < 8; col++) {
-            const char piece = state.board[row][col];
+            const char& piece = state.board[row][col];
+            if (piece == ' ') continue;
             this->sRow = row;
             this->sCol = col;
-            if (state.isWhite and isWhitePiece(piece)) {
+            if (state.isWhite && isWhitePiece(piece)) {
                 if (piece == White::KING) {
                     generateLegalMovesKing(state);
                 } else if (piece == White::QUEEN) {
@@ -43,7 +44,7 @@ void Engine::generateLegalMoves(BoardState& state) {
                 } else {
                     generateLegalMovesPawn(state);
                 }
-            } else if (!state.isWhite and isBlackPiece(piece)) {
+            } else if (!state.isWhite && isBlackPiece(piece)) {
                 if (piece == Black::KING) {
                     generateLegalMovesKing(state);
                 } else if (piece == Black::QUEEN) {
@@ -61,6 +62,7 @@ void Engine::generateLegalMoves(BoardState& state) {
                     generateLegalMovesPawn(state);
                 }
             }
+            if (state.checkForMate && !state.legalMoves.empty()) return; // legal move found, return early
         }
     }
     disambiguateMoves(state);
@@ -113,14 +115,14 @@ void Engine::generateLegalMovesKing(BoardState& state) {
     bool shortCastled = false;
     bool longCastled = false;
 
-    if (state.isWhite && sRow == 7 && sCol == 4 && !state.isInCheck) {
+    if (state.isWhite && sRow == 7 && sCol == 4 && !state.checkForMate) {
         if (state.whiteCanLongCastle && state.board[7][1] == ' ' && state.board[7][2] == ' ' && state.board[7][3] == ' ') {
             longCastled = true;
         }
         if (state.whiteCanShortCastle && state.board[7][5] == ' ' && state.board[7][6] == ' ') {
             shortCastled = true;
         }
-    } else if (!state.isWhite && sRow == 0 && sCol == 4 && !state.isInCheck) {
+    } else if (!state.isWhite && sRow == 0 && sCol == 4 && !state.checkForMate) {
         if (state.blackCanLongCastle && state.board[0][1] == ' ' && state.board[0][2] == ' ' && state.board[0][3] == ' ') {
             longCastled = true;
         }
@@ -130,52 +132,61 @@ void Engine::generateLegalMovesKing(BoardState& state) {
     }
 
     if (shortCastled || longCastled) {
-        if (isKingInCheck(state.board, state.isWhite, true)) return;
+        if (isKingInCheck(state, true)) return;
     }
 
-    auto move = string();
-    auto tempState(state);
-    auto &tempBoard = tempState.board;
+    const auto boardCopy(state.board);
+    const auto kingPosCopy(state.isWhite ? state.whiteKingPos : state.blackKingPos);
+    auto& board = state.board;
 
     if (shortCastled) {
-        tempBoard = state.board;
-        tempBoard[sRow][5] = tempBoard[sRow][sCol];
-        tempBoard[sRow][sCol] = ' ';
-        if (!isKingInCheck(tempBoard, state.isWhite, true)) {
-            tempBoard[sRow][6] = tempBoard[sRow][5];
-            tempBoard[sRow][5] = tempBoard[sRow][0];
-            tempBoard[sRow][7] = ' ';
-            move = "O-O";
+        board = boardCopy;
+        board[sRow][5] = board[sRow][sCol];
+        board[sRow][sCol] = ' ';
+        if (state.isWhite) state.whiteKingPos = { sRow,5 };
+        else state.blackKingPos = { sRow,5 };
+        if (!isKingInCheck(state, true)) {
+            board[sRow][6] = board[sRow][5];
+            board[sRow][5] = board[sRow][0];
+            board[sRow][7] = ' ';
+            string move = "O-O";
 
-            if (!isKingInCheck(tempBoard, state.isWhite, true)) {
-                if (isKingInCheck(tempBoard, state.isWhite, false)) {
-                    checkMate(state, tempState, move);
+            if (!isKingInCheck(state, true)) {
+                if (isKingInCheck(state, false)) {
+                    checkMate(state, move);
                 }
-                state.legalMoves.push_back({ move, Move(sRow, sCol, sRow, 6, evaluatePosition(tempState)) });
+                state.legalMoves.emplace_back(move, Move(sRow, sCol, sRow, 6, evaluatePosition(state)));
             }
         }
     }
     if (longCastled) {
-        tempBoard = state.board;
-        tempBoard[sRow][3] = tempBoard[sRow][sCol];
-        tempBoard[sRow][sCol] = ' ';
-        if (!isKingInCheck(tempBoard, state.isWhite, true)) {
-            tempBoard[sRow][2] = tempBoard[sRow][3];
-            tempBoard[sRow][3] = tempBoard[sRow][0];
-            tempBoard[sRow][0] = ' ';
-            move = "O-O-O";
+        board = boardCopy;
+        board[sRow][3] = board[sRow][sCol];
+        board[sRow][sCol] = ' ';
+        if (state.isWhite) state.whiteKingPos = { sRow,3 };
+        else state.blackKingPos = { sRow,3 };
+        if (!isKingInCheck(state, true)) {
+            board[sRow][2] = board[sRow][3];
+            board[sRow][3] = board[sRow][0];
+            board[sRow][0] = ' ';
+            string move = "O-O-O";
 
-            if (!isKingInCheck(tempBoard, state.isWhite, true)) {
-                if (isKingInCheck(tempBoard, state.isWhite, false)) {
-                    checkMate(state, tempState, move);
+            if (!isKingInCheck(state, true)) {
+                if (isKingInCheck(state, false)) {
+                    checkMate(state, move);
                 }
-                state.legalMoves.push_back({ move, Move(sRow, sCol, sRow, 2, evaluatePosition(tempState)) });
+                state.legalMoves.emplace_back(move, Move(sRow, sCol, sRow, 2, evaluatePosition(state)));
             }
         }
     }
+    state.board = boardCopy;
+    if (state.isWhite) state.whiteKingPos = kingPosCopy;
+    else state.blackKingPos = kingPosCopy;
 }
 
 void Engine::generateLegalMovesPawn(BoardState& state) {
+    const int epR = state.enPassantPos.first;
+    const int epC = state.enPassantPos.second;
     if (state.isWhite) {
         if (state.board[sRow - 1][sCol] == ' ') {
             addMove(state, sRow - 1, sCol);
@@ -185,7 +196,7 @@ void Engine::generateLegalMovesPawn(BoardState& state) {
         }
         if (sCol - 1 >= 0 && isBlackPiece(state.board[sRow - 1][sCol - 1])) addMove(state, sRow - 1, sCol - 1);
         if (sCol + 1 < 8 && isBlackPiece(state.board[sRow - 1][sCol + 1])) addMove(state, sRow - 1, sCol + 1);
-        if (abs(state.enPassantCol - sCol) == 1 && sRow == 3 && state.enPassantRow == 2) addMove(state, state.enPassantRow, state.enPassantCol);
+        if (abs(epC - sCol) == 1 && sRow == 3 && epR == 2) addMove(state, epR, epC);
     } else {
         if (state.board[sRow + 1][sCol] == ' ') {
             addMove(state, sRow + 1, sCol);
@@ -195,102 +206,120 @@ void Engine::generateLegalMovesPawn(BoardState& state) {
         }
         if (sCol - 1 >= 0 && isWhitePiece(state.board[sRow + 1][sCol - 1])) addMove(state, sRow + 1, sCol - 1);
         if (sCol + 1 < 8 && isWhitePiece(state.board[sRow + 1][sCol + 1])) addMove(state, sRow + 1, sCol + 1);
-        if (abs(state.enPassantCol - sCol) == 1 && sRow == 4 && state.enPassantRow == 5) addMove(state, state.enPassantRow, state.enPassantCol);
+        if (abs(epC - sCol) == 1 && sRow == 4 && epR == 5) addMove(state, epR, epC);
     }
 }
 
 void Engine::generateLegalMovesUsingOffsets(BoardState& state, array<pair<int, int>, 8> offsets) {
     for (auto const&[oRow, oCol] : offsets) {
-        int eRow = sRow + oRow;
-        int eCol = sCol + oCol;
+        const int eRow = sRow + oRow;
+        const int eCol = sCol + oCol;
 
         if (eRow >= 0 && eRow < 8 && eCol >= 0 && eCol < 8) addMove(state, eRow, eCol);
     }
 }
 
 bool Engine::addMove(BoardState& state, int eRow, int eCol) {
-    const char end = state.board[eRow][eCol];
+    auto& board = state.board;
+    const char end = board[eRow][eCol];
     if ((state.isWhite && isWhitePiece(end)) || (!state.isWhite && isBlackPiece(end))) return true;
-    bool isPawn = state.board[sRow][sCol] == White::PAWN || state.board[sRow][sCol] == Black::PAWN;
-    string move = string();
+    const bool isPawn = board[sRow][sCol] == White::PAWN || board[sRow][sCol] == Black::PAWN;
+    string move;
 
     if (!isPawn) {
-        move += toupper(state.board[sRow][sCol]);
+        move += toupper(board[sRow][sCol]);
     }
 
     if (isPawn && end == ' ' && abs(eCol - sCol) == 1) {
-        move = move + (char)('a' + sCol) + 'x';
+        move += (char)('a' + sCol);
+        move += 'x';
     } else if (end != ' ') {
         if (isPawn) {
-            move = move + (char)('a' + sCol) + 'x';
-        } else {
-            move += 'x';
-        }
+            move += (char)('a' + sCol);
+        } 
+        move += 'x';
     }
 
-    move = move + (char)('a' + eCol) + (char)('8' - eRow);
-
-    auto tempState(state);
-    auto &tempBoard = tempState.board;
+    move += (char)('a' + eCol);
+    move += (char)('8' - eRow);
 
     if (isPawn && ((state.isWhite && eRow == 0) || (!state.isWhite && eRow == 7))) {
         array<string, 4> promotionMoves = { {
             move + "=Q", move + "=B", move + "=N", move + "=R"
             } };
         for (auto &m : promotionMoves) {
-            if (state.isWhite) tempBoard[eRow][eCol] = m.back();
-            else tempBoard[eRow][eCol] = m.back() + 0x20;
-            tempBoard[sRow][sCol] = ' ';
+            if (state.isWhite) board[eRow][eCol] = m.back();
+            else board[eRow][eCol] = m.back() + 0x20;
+            board[sRow][sCol] = ' ';
 
-            if (!isKingInCheck(tempBoard, state.isWhite, true)) {
-                if (isKingInCheck(tempBoard, state.isWhite, false)) {
-                    checkMate(state, tempState, m);
+            if (!isKingInCheck(state, true)) {
+                if (isKingInCheck(state, false)) {
+                    checkMate(state, m);
                 }
-                state.legalMoves.push_back({ m, Move(sRow, sCol, eRow, eCol, evaluatePosition(tempState)) });
+                state.legalMoves.emplace_back(m, Move(sRow, sCol, eRow, eCol, evaluatePosition(state)));
             }
         }
+        board[sRow][sCol] = state.isWhite ? White::PAWN : Black::PAWN;
+        board[eRow][eCol] = ' ';
         return false;
     }
 
-    tempBoard[eRow][eCol] = tempBoard[sRow][sCol];
-    tempBoard[sRow][sCol] = ' ';
-
-    if (isPawn && abs(eCol - sCol) == 1 && end == ' ') {
-        if (state.isWhite) tempBoard[eRow + 1][eCol] = ' ';
-        else tempBoard[eRow - 1][eCol] = ' ';
+    board[eRow][eCol] = board[sRow][sCol];
+    board[sRow][sCol] = ' ';
+    
+    if (board[eRow][eCol] == White::KING || board[eRow][eCol] == Black::KING) {
+        if (state.isWhite) state.whiteKingPos = { eRow,eCol };
+        else state.blackKingPos = { eRow, eCol };
     }
 
-    if (!isKingInCheck(tempBoard, state.isWhite, true)) {
-        if (isKingInCheck(tempBoard, state.isWhite, false)) {
-            checkMate(state, tempState, move);
+    if (isPawn && abs(eCol - sCol) == 1 && end == ' ') {
+        if (state.isWhite) board[eRow + 1][eCol] = ' ';
+        else board[eRow - 1][eCol] = ' ';
+    }
+
+    if (!isKingInCheck(state, true)) {
+        if (isKingInCheck(state, false)) {
+            checkMate(state, move);
         }
 
-        bool duplicate = false;
-        Move duplicateMove;
+        const Move* duplicateMove = nullptr;
         for (auto const& [n, m] : state.legalMoves) {
             if (move == n) {
-                duplicate = true;
-                duplicateMove = m;
+                duplicateMove = &m;
                 break;
             }
         }
-        if (duplicate) {
+        if (duplicateMove != nullptr) {
             if (!state.ambigiousMoves.contains(move)) {
-                state.ambigiousMoves[move].push_back(duplicateMove);
+                state.ambigiousMoves[move].push_back(*duplicateMove);
             }
-            state.ambigiousMoves[move].push_back(Move(sRow, sCol, eRow, eCol, evaluatePosition(tempState)));
+            state.ambigiousMoves[move].push_back(Move(sRow, sCol, eRow, eCol, evaluatePosition(state)));
         } else {
-            state.legalMoves.push_back({ move, Move(sRow, sCol, eRow, eCol, evaluatePosition(tempState)) });
+            state.legalMoves.emplace_back(move, Move(sRow, sCol, eRow, eCol, evaluatePosition(state)));
         }
     }
+
+    // Undo move on state
+    if (board[eRow][eCol] == White::KING || board[eRow][eCol] == Black::KING) {
+        if (state.isWhite) state.whiteKingPos = { sRow,sCol };
+        else state.blackKingPos = { sRow, sCol };
+    }
+    if (isPawn && abs(eCol - sCol) == 1 && end == ' ') {
+        if (state.isWhite) board[eRow + 1][eCol] = Black::PAWN;
+        else board[eRow - 1][eCol] = White::PAWN;
+    }
+
+    state.board[sRow][sCol] = state.board[eRow][eCol];
+    state.board[eRow][eCol] = end;
 
     if (end != ' ') return true;
     return false;
 }
 
-void Engine::checkMate(BoardState& state, BoardState& tempState, string& move) {
-    if (!state.isInCheck) {
-        tempState.isInCheck = true;
+void Engine::checkMate(BoardState& state, string& move) {
+    if (!state.checkForMate) {
+        auto tempState(state);
+        tempState.checkForMate = true;
         tempState.isWhite = !state.isWhite;
         const int tempSRow = sRow;
         const int tempSCol = sCol;
@@ -300,24 +329,15 @@ void Engine::checkMate(BoardState& state, BoardState& tempState, string& move) {
         if (tempState.legalMoves.size() == 0) move += '#';
         else move += '+';
     } else {
-        move += '+'; // we don't really care about this I think
+        move += '+'; // we don't really care about this I think, function returns early when any legal move is found even a counter check
     }
 }
 
-bool Engine::isKingInCheck(array<array<char, 8>, 8> &board, bool isWhite, bool checkSelf) const{
-    bool checkWhite = isWhite ? checkSelf ? true : false : checkSelf ? false : true;
-    int kRow = -1;
-    int kCol = -1;
-    for (int row = 0; row < 8; row++) {
-        for (int col = 0; col < 8; col++) {
-            if ((checkWhite && board[row][col] == White::KING) || (!checkWhite && board[row][col] == Black::KING)) {
-                kRow = row;
-                kCol = col;
-                break;
-            }
-        }
-        if (kRow != -1) break;
-    }
+bool Engine::isKingInCheck(BoardState& state, bool checkSelf) const {
+    const auto& board = state.board;
+    const bool checkWhite = state.isWhite ? checkSelf ? true : false : checkSelf ? false : true;
+    const int kRow = checkWhite ? state.whiteKingPos.first : state.blackKingPos.first;
+    const int kCol = checkWhite ? state.whiteKingPos.second : state.blackKingPos.second;
 
     for (int row = kRow - 1; row >= 0; row--) {
         if (board[row][kCol] == ' ') continue;
@@ -436,10 +456,12 @@ void Engine::playMove(BoardState& boardState, const string& notation, const Move
     if (board[sRow][sCol] == White::KING) {
         boardState.whiteCanLongCastle = false;
         boardState.whiteCanShortCastle = false;
+        boardState.whiteKingPos = { eRow, eCol };
     }
     if (board[sRow][sCol] == Black::KING) {
         boardState.blackCanLongCastle = false;
         boardState.blackCanShortCastle = false;
+        boardState.blackKingPos = { eRow, eCol };
     }
     if ((sRow == 7 && sCol == 0 && board[sRow][sCol] == White::ROOK)
         || (eRow == 7 && eCol == 0 && board[eRow][eCol] == White::ROOK)) {
@@ -460,15 +482,12 @@ void Engine::playMove(BoardState& boardState, const string& notation, const Move
 
     // En passant
     if (board[sRow][sCol] == White::PAWN && sRow - eRow == 2) {
-        boardState.enPassantCol = eCol;
-        boardState.enPassantRow = sRow - 1;
+        boardState.enPassantPos = { sRow - 1, eCol };
     } else if (board[sRow][sCol] == Black::PAWN && eRow - sRow == 2) {
-        boardState.enPassantCol = eCol;
-        boardState.enPassantRow = eRow - 1;
+        boardState.enPassantPos = { eRow - 1, eCol };
     } else {
-        if (eRow == boardState.enPassantRow && eCol == boardState.enPassantCol) board[sRow][eCol] = ' ';
-        boardState.enPassantCol = -1;
-        boardState.enPassantRow = -1;
+        if ((board[sRow][sCol] == White::PAWN || board[sRow][sCol] == Black::PAWN) && eRow == boardState.enPassantPos.first && eCol == boardState.enPassantPos.second) board[sRow][eCol] = ' ';
+        boardState.enPassantPos = { -1, -1 };
     }
 
     board[eRow][eCol] = board[sRow][sCol];

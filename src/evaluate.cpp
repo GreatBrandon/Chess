@@ -1,6 +1,6 @@
 #include "evaluate.h"
 
-int evaluatePosition(BoardState& boardState) {
+int evaluatePosition(const BoardState& boardState) {
     int evaluation = 0;
 
     // count material value and position using pre-calculated weights

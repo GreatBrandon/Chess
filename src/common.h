@@ -1,5 +1,6 @@
 #pragma once
 #include <array>
+#include <map>
 #include <unordered_map>
 #include <string>
 #include <vector>
@@ -80,17 +81,17 @@ struct BoardState {
     bool whiteCanLongCastle = true;
     bool blackCanShortCastle = true;
     bool blackCanLongCastle = true;
-    bool isInCheck = false; // only used INTERNALLY to determine mating
-    int enPassantRow = -1;
-    int enPassantCol = -1;
+    bool checkForMate = false; // only used INTERNALLY to determine mating
+    std::pair<int, int> enPassantPos = { -1, -1 };
+    std::pair<int, int> whiteKingPos = { 7, 4 };
+    std::pair<int, int> blackKingPos = { 0, 4 };
     int stalemateMoveCounter = 0;
     int evaluation = 0;
     std::vector<std::pair<std::string, Move>> legalMoves;
-    std::unordered_map<std::string, std::vector<Move>> ambigiousMoves;
+    std::map<std::string, std::vector<Move>> ambigiousMoves;
 
     BoardState(){
         legalMoves.reserve(64);
-        ambigiousMoves.reserve(8);
     }
 
     BoardState(const BoardState& other) : 
@@ -100,14 +101,14 @@ struct BoardState {
         whiteCanLongCastle(other.whiteCanLongCastle),
         blackCanShortCastle(other.blackCanShortCastle),
         blackCanLongCastle(other.blackCanLongCastle),
-        isInCheck(other.isInCheck),
-        enPassantRow(other.enPassantRow),
-        enPassantCol(other.enPassantCol),
+        checkForMate(other.checkForMate),
+        enPassantPos(other.enPassantPos),
+        whiteKingPos(other.whiteKingPos),
+        blackKingPos(other.blackKingPos),
         stalemateMoveCounter(other.stalemateMoveCounter),
         evaluation(other.evaluation)
     {
         legalMoves.reserve(64);
-        ambigiousMoves.reserve(8);
     }
 
     BoardState& operator=(const BoardState& other) {
@@ -117,9 +118,10 @@ struct BoardState {
         whiteCanLongCastle = other.whiteCanLongCastle;
         blackCanShortCastle = other.blackCanShortCastle;
         blackCanLongCastle = other.blackCanLongCastle;
-        isInCheck = other.isInCheck;
-        enPassantRow = other.enPassantRow;
-        enPassantCol = other.enPassantCol;
+        checkForMate = other.checkForMate;
+        enPassantPos = other.enPassantPos;
+        whiteKingPos = other.whiteKingPos;
+        blackKingPos = other.blackKingPos;
         stalemateMoveCounter = other.stalemateMoveCounter;
         evaluation = other.evaluation;
 

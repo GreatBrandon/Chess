@@ -91,6 +91,6 @@ constexpr BoardArray KING_WEIGHTS_ENDGAME = { {
 	{{-50,-30,-30,-30,-30,-30,-30,-50}}
 } };
 
-int evaluatePosition(BoardState&);
+int evaluatePosition(const BoardState&);
 static constexpr int pieceValue(const char&);
 static constexpr int positionValue(const char&, const int&, const int&);

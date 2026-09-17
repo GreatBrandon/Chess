@@ -22,9 +22,9 @@ private:
 	void generateLegalMovesKing(BoardState&);
 	void generateLegalMovesPawn(BoardState&);
 	void generateLegalMovesUsingOffsets(BoardState&, array<pair<int, int>, 8>);
-	void checkMate(BoardState&, BoardState&, string&);
+	void checkMate(BoardState&, string&);
 	bool addMove(BoardState&, int, int);
-	bool isKingInCheck(array<array<char, 8>, 8>&, bool, bool) const;
+	bool isKingInCheck(BoardState&, bool) const;
 	bool actuallyCheckIsKingInCheck(bool, char, bool) const;
 	void disambiguateMoves(BoardState&);
 	int alphaBeta(BoardState&, int, int, int);

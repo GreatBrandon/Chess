@@ -71,6 +71,7 @@ void chessGame::playMove(int sRow, int sCol, int eRow, int eCol, char promotionP
 void chessGame::changePlayer() {
     boardState.isWhite = !boardState.isWhite;
     engine.generateLegalMoves(boardState);
+    //cout << boardState.legalMoves.size() << "legal moves found for " << boardState.isWhite << endl;
     previousMoves.push_back(boardState);
 
     if (boardState.legalMoves.size() == 0) {
