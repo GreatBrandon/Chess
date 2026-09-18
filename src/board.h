@@ -14,7 +14,7 @@ constexpr int MIN_DEPTH = 2;
 class chessGame {
 public:
 	Engine engine = Engine();
-	vector<string> moves;
+	vector<array<char, 8>> moves;
 	BoardState boardState;
 	vector<BoardState> previousMoves;
 	bool isDraw = false;

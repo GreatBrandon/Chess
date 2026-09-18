@@ -63,8 +63,8 @@ inline bool isBlackPiece(char piece) {
         piece == Black::PAWN;
 }
 
-const std::array<std::array<char, 8>, 8> START_BOARD = {{
-    { { 'r', 'n', 'b', 'q', 'k', 'b', 'n', 'r' } },
+const std::array<std::array<char, 8>, 8> START_BOARD = { {
+    { {'r', 'n', 'b', 'q', 'k', 'b', 'n', 'r' } },
     { {'p', 'p', 'p', 'p', 'p', 'p', 'p', 'p'} },
     { {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '} },
     { {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '} },
@@ -72,7 +72,18 @@ const std::array<std::array<char, 8>, 8> START_BOARD = {{
     { {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '} },
     { {'P', 'P', 'P', 'P', 'P', 'P', 'P', 'P'} },
     { {'R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'} }
-}};
+} };
+
+//const std::array<std::array<char, 8>, 8> START_BOARD = { {
+//    { {'r', 'n', 'b', ' ', ' ', 'b', 'n', 'r' } },
+//    { {'p', 'p', 'p', 'p', ' ', 'k', ' ', 'p'} },
+//    { {' ', ' ', ' ', ' ', ' ', ' ', 'p', ' '} },
+//    { {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '} },
+//    { {' ', ' ', ' ', 'q', 'P', ' ', ' ', ' '} },
+//    { {' ', ' ', ' ', 'B', ' ', ' ', ' ', 'N'} },
+//    { {'P', 'P', 'P', 'P', ' ', ' ', 'P', 'P'} },
+//    { {'R', 'N', 'B', 'Q', 'K', ' ', ' ', 'R'} }
+//} };
 
 struct BoardState {
     std::array<std::array<char, 8>, 8> board = START_BOARD;
@@ -87,8 +98,8 @@ struct BoardState {
     std::pair<int, int> blackKingPos = { 0, 4 };
     int stalemateMoveCounter = 0;
     int evaluation = 0;
-    std::vector<std::pair<std::string, Move>> legalMoves;
-    std::map<std::string, std::vector<Move>> ambigiousMoves;
+    std::vector<std::pair<std::array<char, 8>, Move>> legalMoves;
+    std::map<std::array<char, 8>, std::vector<Move>> ambigiousMoves;
 
     BoardState(){
         legalMoves.reserve(64);

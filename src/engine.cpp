@@ -138,50 +138,47 @@ void Engine::generateLegalMovesKing(BoardState& state) {
     const auto boardCopy(state.board);
     const auto kingPosCopy(state.isWhite ? state.whiteKingPos : state.blackKingPos);
     auto& board = state.board;
+    const int initialEval = state.evaluation;
 
     if (shortCastled) {
-        board = boardCopy;
-        board[sRow][5] = board[sRow][sCol];
-        board[sRow][sCol] = ' ';
-        if (state.isWhite) state.whiteKingPos = { sRow,5 };
-        else state.blackKingPos = { sRow,5 };
+        moveAndEvaluate(state, Move(sRow, sCol, sRow, 5)); // move king 1 square
         if (!isKingInCheck(state, true)) {
-            board[sRow][6] = board[sRow][5];
-            board[sRow][5] = board[sRow][0];
-            board[sRow][7] = ' ';
-            string move = "O-O";
-
+            moveAndEvaluate(state, Move(sRow, 5, sRow, 6)); // move king another square
             if (!isKingInCheck(state, true)) {
+                moveAndEvaluate(state, Move(sRow, 7, sRow, 5)); // move rook
+                array<char, 8> moveBuf = { 'O', '-', 'O' };
+                int len = 3;
                 if (isKingInCheck(state, false)) {
-                    checkMate(state, move);
+                    if (checkMate(state)) moveBuf[len++] = '#';
+                    else moveBuf[len++] = '+';
                 }
-                state.legalMoves.emplace_back(move, Move(sRow, sCol, sRow, 6, evaluatePosition(state)));
+                state.legalMoves.emplace_back(moveBuf, Move(sRow, sCol, sRow, 6, state.evaluation));
             }
         }
     }
     if (longCastled) {
+        // Undo short castle move, if applicable
         board = boardCopy;
-        board[sRow][3] = board[sRow][sCol];
-        board[sRow][sCol] = ' ';
-        if (state.isWhite) state.whiteKingPos = { sRow,3 };
-        else state.blackKingPos = { sRow,3 };
+        state.evaluation = initialEval;
+        moveAndEvaluate(state, Move(sRow, sCol, sRow, 3)); // move king 1 square
         if (!isKingInCheck(state, true)) {
-            board[sRow][2] = board[sRow][3];
-            board[sRow][3] = board[sRow][0];
-            board[sRow][0] = ' ';
-            string move = "O-O-O";
-
+            moveAndEvaluate(state, Move(sRow, 3, sRow, 2)); // move king another square
             if (!isKingInCheck(state, true)) {
+                moveAndEvaluate(state, Move(sRow, 0, sRow, 3)); // move rook
+                array<char, 8> moveBuf = { 'O', '-', 'O', '-', 'O' };
+                int len = 5;
                 if (isKingInCheck(state, false)) {
-                    checkMate(state, move);
+                    if (checkMate(state)) moveBuf[len++] = '#';
+                    else moveBuf[len++] = '+';
                 }
-                state.legalMoves.emplace_back(move, Move(sRow, sCol, sRow, 2, evaluatePosition(state)));
+                state.legalMoves.emplace_back(moveBuf, Move(sRow, sCol, sRow, 2, evaluatePosition(state)));
             }
         }
     }
     state.board = boardCopy;
     if (state.isWhite) state.whiteKingPos = kingPosCopy;
     else state.blackKingPos = kingPosCopy;
+    state.evaluation = initialEval;
 }
 
 void Engine::generateLegalMovesPawn(BoardState& state) {
@@ -210,7 +207,7 @@ void Engine::generateLegalMovesPawn(BoardState& state) {
     }
 }
 
-void Engine::generateLegalMovesUsingOffsets(BoardState& state, array<pair<int, int>, 8> offsets) {
+void Engine::generateLegalMovesUsingOffsets(BoardState& state, const array<pair<int, int>, 8>& offsets) {
     for (auto const&[oRow, oCol] : offsets) {
         const int eRow = sRow + oRow;
         const int eCol = sCol + oCol;
@@ -219,83 +216,87 @@ void Engine::generateLegalMovesUsingOffsets(BoardState& state, array<pair<int, i
     }
 }
 
-bool Engine::addMove(BoardState& state, int eRow, int eCol) {
+bool Engine::addMove(BoardState& state, const int& eRow, const int& eCol) {
     auto& board = state.board;
     const char end = board[eRow][eCol];
     if ((state.isWhite && isWhitePiece(end)) || (!state.isWhite && isBlackPiece(end))) return true;
     const bool isPawn = board[sRow][sCol] == White::PAWN || board[sRow][sCol] == Black::PAWN;
-    string move;
+    const int initialEval(state.evaluation);
+    array<char, 8> moveBuf = {};
+    int len = 0;
 
     if (!isPawn) {
-        move += toupper(board[sRow][sCol]);
+        if (state.isWhite) moveBuf[len++] = board[sRow][sCol];
+        else moveBuf[len++] = board[sRow][sCol] - 0x20;
     }
 
     if (isPawn && end == ' ' && abs(eCol - sCol) == 1) {
-        move += (char)('a' + sCol);
-        move += 'x';
+        moveBuf[len++] = (char)('a' + sCol);
+        moveBuf[len++] = 'x';
     } else if (end != ' ') {
         if (isPawn) {
-            move += (char)('a' + sCol);
+            moveBuf[len++] = (char)('a' + sCol);
         } 
-        move += 'x';
+        moveBuf[len++] = 'x';
     }
 
-    move += (char)('a' + eCol);
-    move += (char)('8' - eRow);
+    moveBuf[len++] = (char)('a' + eCol);
+    moveBuf[len++] = (char)('8' - eRow);
 
     if (isPawn && ((state.isWhite && eRow == 0) || (!state.isWhite && eRow == 7))) {
-        array<string, 4> promotionMoves = { {
-            move + "=Q", move + "=B", move + "=N", move + "=R"
-            } };
-        for (auto &m : promotionMoves) {
-            if (state.isWhite) board[eRow][eCol] = m.back();
-            else board[eRow][eCol] = m.back() + 0x20;
-            board[sRow][sCol] = ' ';
-
+        const char promotionMoves[4] = { 'Q', 'B', 'N', 'R' };
+        moveBuf[len++] = '=';
+        array<char, 8> moveCopy(moveBuf);
+        int baseLen = len;
+        moveAndEvaluate(state, Move(sRow, sCol, eRow, eCol));
+        for (const char &m : promotionMoves) {
+            moveBuf = moveCopy;
+            len = baseLen;
+            moveBuf[len++] = m;
+            promotePawnAndEvaluate(state, eRow, eCol, (state.isWhite) ? m : m + 0x20);
             if (!isKingInCheck(state, true)) {
                 if (isKingInCheck(state, false)) {
-                    checkMate(state, m);
+                    if (checkMate(state)) moveBuf[len++] = '#';
+                    else moveBuf[len++] = '+';
                 }
-                state.legalMoves.emplace_back(m, Move(sRow, sCol, eRow, eCol, evaluatePosition(state)));
+                state.legalMoves.emplace_back(moveBuf, Move(sRow, sCol, eRow, eCol, evaluatePosition(state)));
             }
         }
         board[sRow][sCol] = state.isWhite ? White::PAWN : Black::PAWN;
-        board[eRow][eCol] = ' ';
+        board[eRow][eCol] = end;
+        state.evaluation = initialEval;
         return false;
     }
-
-    board[eRow][eCol] = board[sRow][sCol];
-    board[sRow][sCol] = ' ';
-    
-    if (board[eRow][eCol] == White::KING || board[eRow][eCol] == Black::KING) {
-        if (state.isWhite) state.whiteKingPos = { eRow,eCol };
-        else state.blackKingPos = { eRow, eCol };
-    }
+    moveAndEvaluate(state, Move(sRow, sCol, eRow, eCol, state.evaluation));
 
     if (isPawn && abs(eCol - sCol) == 1 && end == ' ') {
-        if (state.isWhite) board[eRow + 1][eCol] = ' ';
-        else board[eRow - 1][eCol] = ' ';
+        moveAndEvaluate(state, Move(sRow, sCol, state.isWhite ? eRow + 1 : eRow - 1, eCol, state.evaluation));
     }
 
     if (!isKingInCheck(state, true)) {
         if (isKingInCheck(state, false)) {
-            checkMate(state, move);
+            if (checkMate(state)) moveBuf[len++] = '#';
+            else moveBuf[len++] = '+';
         }
 
+        uint64_t moveKey;
+        uint64_t existingKey;
+        memcpy(&moveKey, moveBuf.data(), 8);
         const Move* duplicateMove = nullptr;
         for (auto const& [n, m] : state.legalMoves) {
-            if (move == n) {
+            memcpy(&existingKey, n.data(), 8);
+            if (moveKey == existingKey) {
                 duplicateMove = &m;
                 break;
             }
         }
         if (duplicateMove != nullptr) {
-            if (!state.ambigiousMoves.contains(move)) {
-                state.ambigiousMoves[move].push_back(*duplicateMove);
+            if (!state.ambigiousMoves.contains(moveBuf)) {
+                state.ambigiousMoves[moveBuf].emplace_back(*duplicateMove);
             }
-            state.ambigiousMoves[move].push_back(Move(sRow, sCol, eRow, eCol, evaluatePosition(state)));
+            state.ambigiousMoves[moveBuf].emplace_back(sRow, sCol, eRow, eCol, state.evaluation);
         } else {
-            state.legalMoves.emplace_back(move, Move(sRow, sCol, eRow, eCol, evaluatePosition(state)));
+            state.legalMoves.emplace_back(moveBuf, Move(sRow, sCol, eRow, eCol, state.evaluation));
         }
     }
 
@@ -311,12 +312,13 @@ bool Engine::addMove(BoardState& state, int eRow, int eCol) {
 
     state.board[sRow][sCol] = state.board[eRow][eCol];
     state.board[eRow][eCol] = end;
+    state.evaluation = initialEval;
 
     if (end != ' ') return true;
     return false;
 }
 
-void Engine::checkMate(BoardState& state, string& move) {
+bool Engine::checkMate(BoardState& state) {
     if (!state.checkForMate) {
         auto tempState(state);
         tempState.checkForMate = true;
@@ -326,11 +328,15 @@ void Engine::checkMate(BoardState& state, string& move) {
         generateLegalMoves(tempState);
         sRow = tempSRow;
         sCol = tempSCol;
-        if (tempState.legalMoves.size() == 0) move += '#';
-        else move += '+';
+        if (tempState.legalMoves.size() == 0) {
+            //move += '#';
+            return true;
+        }
+        //else move += '+';
     } else {
-        move += '+'; // we don't really care about this I think, function returns early when any legal move is found even a counter check
+        //move += '+'; // we don't really care about this I think, function returns early when any legal move is found even a counter check
     }
+    return false;
 }
 
 bool Engine::isKingInCheck(BoardState& state, bool checkSelf) const {
@@ -339,41 +345,49 @@ bool Engine::isKingInCheck(BoardState& state, bool checkSelf) const {
     const int kRow = checkWhite ? state.whiteKingPos.first : state.blackKingPos.first;
     const int kCol = checkWhite ? state.whiteKingPos.second : state.blackKingPos.second;
 
+    // ↑
     for (int row = kRow - 1; row >= 0; row--) {
         if (board[row][kCol] == ' ') continue;
         if (actuallyCheckIsKingInCheck(checkWhite, board[row][kCol], true)) return true;
         break;
     }
+    // ↓
     for (int row = kRow + 1; row < 8; row++) {
         if (board[row][kCol] == ' ') continue;
         if (actuallyCheckIsKingInCheck(checkWhite, board[row][kCol], true)) return true;
         break;
     }
+    // ←
     for (int col = kCol - 1; col >= 0; col--) {
         if (board[kRow][col] == ' ') continue;
         if (actuallyCheckIsKingInCheck(checkWhite, board[kRow][col], true)) return true;
         break;
     }
+    // →
     for (int col = kCol + 1; col < 8; col++) {
         if (board[kRow][col] == ' ') continue;
         if (actuallyCheckIsKingInCheck(checkWhite, board[kRow][col], true)) return true;
         break;
     }
+    // ↗
     for (int col = kCol + 1, row = kRow - 1; col < 8 && row >= 0; col++, row--) {
         if (board[row][col] == ' ') continue;
         if (actuallyCheckIsKingInCheck(checkWhite, board[row][col], false)) return true;
         break;
     }
+    // ↘
     for (int col = kCol + 1, row = kRow + 1; col < 8 && row < 8; col++, row++) {
         if (board[row][col] == ' ') continue;
         if (actuallyCheckIsKingInCheck(checkWhite, board[row][col], false)) return true;
         break;
     }
+    // ↖
     for (int col = kCol - 1, row = kRow - 1; col >= 0 && row >= 0; col--, row--) {
         if (board[row][col] == ' ') continue;
         if (actuallyCheckIsKingInCheck(checkWhite, board[row][col], false)) return true;
         break;
     }
+    // ↙
     for (int col = kCol - 1, row = kRow + 1; col >= 0 && row < 8; col--, row++) {
         if (board[row][col] == ' ') continue;
         if (actuallyCheckIsKingInCheck(checkWhite, board[row][col], false)) return true;
@@ -419,33 +433,47 @@ void Engine::disambiguateMoves(BoardState& state) {
                 if (move.sRow == other.sRow) rankUnique = false;
             }
 
-            string newNotation = notation;
+            array<char, 8> moveBuf = {};
+            int len = 0;
+
+            moveBuf[len++] = notation[0]; // piece letter (e.g. 'R')
 
             if (fileUnique) {
-                // Use file: Rae1
-                newNotation.insert(1, 1, (char)('a' + move.sCol));
+                moveBuf[len++] = (char)('a' + move.sCol);
             } else if (rankUnique) {
-                // Use rank: R3e1
-                newNotation.insert(1, 1, (char)('8' - move.sRow));
+                moveBuf[len++] = (char)('8' - move.sRow);
             } else {
-                // Need both: Ra3e1
-                newNotation.insert(1, 1, (char)('a' + move.sCol));
-                newNotation.insert(2, 1, (char)('8' - move.sRow));
+                moveBuf[len++] = (char)('a' + move.sCol);
+                moveBuf[len++] = (char)('8' - move.sRow);
             }
 
-            state.legalMoves.push_back({ newNotation, move });
+            for (int j = 1; j < notation.size() && len < 8; j++) {
+                moveBuf[len++] = notation[j];
+            }
+
+            state.legalMoves.emplace_back(moveBuf, move);
         }
     }
     state.ambigiousMoves.clear();
 }
 
-void Engine::playMove(BoardState& boardState, const string& notation, const Move& move) {
+void Engine::playMove(BoardState& boardState, const array<char, 8>& notation, const Move& move) {
     auto& board = boardState.board;
     const int sRow = move.sRow;
     const int sCol = move.sCol;
     const int eRow = move.eRow;
     const int eCol = move.eCol;
     int evaluation = move.evaluation;
+
+    int eqPos = -1;
+    int lastPos = -1;
+    for (int i = 0; i < 8; i++) {
+        if (notation[i] == '\0') {
+            lastPos = i;
+            break;
+        }
+        if (notation[i] == '=') eqPos = i;
+    }
     // 50 move rule
     if (board[eRow][eCol] != ' ' || board[sRow][sCol] == White::PAWN || board[sRow][sCol] == Black::PAWN) {
         boardState.stalemateMoveCounter = 0;
@@ -495,23 +523,24 @@ void Engine::playMove(BoardState& boardState, const string& notation, const Move
 
     // Pawn promotion
     if (board[eRow][eCol] == White::PAWN && eRow == 0) {
-        board[eRow][eCol] = notation[notation.find('=') + 1];
+        board[eRow][eCol] = notation[eqPos + 1];
     } else if (board[eRow][eCol] == Black::PAWN && eRow == 7) {
-        board[eRow][eCol] = notation[notation.find('=') + 1] + 0x20;
+        board[eRow][eCol] = notation[eqPos + 1] + 0x20;
     }
 
     // Castle
-    if (notation.starts_with("O-O-O")) {
-        board[sRow][3] = board[sRow][0];
-        board[sRow][0] = ' ';
-    } else if (notation.starts_with("O-O")) {
-        board[sRow][5] = board[sRow][7];
-        board[sRow][7] = ' ';
+    if (notation[0] == 'O') {
+        if (notation[4] == 'O') {
+            board[sRow][3] = board[sRow][0];
+            board[sRow][0] = ' ';
+        } else {
+            board[sRow][5] = board[sRow][7];
+            board[sRow][7] = ' ';
+        }
     }
 
-
     // Checkmate
-    if (notation.ends_with('#')) {
+    if (notation[lastPos - 1] == '#') {
         if (boardState.isWhite) evaluation = CHECKMATE_EVAL;
         else evaluation = -CHECKMATE_EVAL;
     } else {
@@ -534,21 +563,19 @@ void Engine::playMove(BoardState& boardState, const string& notation, const Move
     boardState.evaluation = evaluation;
 }
 
-pair<string, Move> Engine::getBestMove(BoardState& root, int depth) {
+pair<array<char, 8>, Move> Engine::getBestMove(BoardState& root, int depth) {
     Move bestMove(-1,-1,-1,-1,-1);
     int alpha = -INF;
-    string bestMoveNotation;
+    array<char, 8> bestMoveNotation;
 
     // sort the initial list of moves
     sort(root.legalMoves.begin(), root.legalMoves.end(),
-        [&](pair<string, Move> const& a, pair<string, Move> const& b) {
-            return root.isWhite
-                ? a.second.evaluation > b.second.evaluation   // White wants highest first
-                : a.second.evaluation < b.second.evaluation;  // Black wants lowest first
+        [sign = root.isWhite ? 1 : -1](auto const& a, auto const& b) {
+            return a.second.evaluation * sign > b.second.evaluation * sign;
         });
     CALLCOUNT = 0;
 
-    for (auto& [notation, move] : root.legalMoves) {
+    for (const auto& [notation, move] : root.legalMoves) {
         auto newState(root);
 
         playMove(newState, notation, move);
@@ -565,7 +592,7 @@ pair<string, Move> Engine::getBestMove(BoardState& root, int depth) {
             bestMoveNotation = notation;
         }
     }
-    cout << "Best move: " << bestMoveNotation << ", nodes checked: " << CALLCOUNT << endl;
+    cout << "Best move: " << bestMoveNotation.data() << ", nodes checked: " << CALLCOUNT << endl;
     return { bestMoveNotation, bestMove };
 }
 
@@ -576,14 +603,12 @@ int Engine::alphaBeta(BoardState& prevState, int alpha, int beta, int depthleft)
 
     if (depthleft > 1) {
         sort(prevState.legalMoves.begin(), prevState.legalMoves.end(),
-            [&](pair<string, Move> const& a, pair<string, Move> const& b) {
-                return prevState.isWhite
-                    ? a.second.evaluation > b.second.evaluation   // White wants highest first
-                    : a.second.evaluation < b.second.evaluation;  // Black wants lowest first
+            [sign = prevState.isWhite ? 1 : -1](auto const& a, auto const& b) {
+                return a.second.evaluation * sign > b.second.evaluation * sign;
             });
     }
     int bestValue = -INF;
-    for (auto& [notation, move] : prevState.legalMoves) {
+    for (const auto& [notation, move] : prevState.legalMoves) {
         auto newState(prevState);
         playMove(newState, notation, move);
         newState.isWhite = !prevState.isWhite;

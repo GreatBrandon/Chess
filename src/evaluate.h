@@ -91,6 +91,8 @@ constexpr BoardArray KING_WEIGHTS_ENDGAME = { {
 	{{-50,-30,-30,-30,-30,-30,-30,-50}}
 } };
 
+void moveAndEvaluate(BoardState&, const Move&);
+void promotePawnAndEvaluate(BoardState&, const int, const int, const char);
 int evaluatePosition(const BoardState&);
 static constexpr int pieceValue(const char&);
 static constexpr int positionValue(const char&, const int&, const int&);

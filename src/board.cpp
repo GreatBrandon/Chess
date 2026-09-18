@@ -34,7 +34,17 @@ void chessGame::playMove(int sRow, int sCol, int eRow, int eCol, char promotionP
 
     for (auto const& [notation, move] : boardState.legalMoves) {
         if (move.sRow == sRow && move.sCol == sCol && move.eRow == eRow && move.eCol == eCol) {
-            if (notation.find('=') != string::npos && notation[notation.find('=') + 1] != promotionPiece) continue;
+            int eqPos = -1;
+            int lastPos = -1;
+            for (int i = 0; i < 8; i++) {
+                if (notation[i] == '\0') {
+                    lastPos = i;
+                    break;
+                }
+                if (notation[i] == '=') eqPos = i;
+            }
+
+            if (eqPos != -1 && notation[eqPos + 1] != promotionPiece) continue;
 
             engine.playMove(boardState, notation, move);
 
@@ -44,7 +54,7 @@ void chessGame::playMove(int sRow, int sCol, int eRow, int eCol, char promotionP
             moves.push_back(notation);
 
             // Checkmate
-            if (notation.ends_with('#')) {
+            if (lastPos - 1 == '#') {
                 isCheckmate = true;
                 return;
             }
@@ -113,7 +123,12 @@ void chessGame::playBotMove() {
     cout << "Took " << durationMs << " ms" << endl;
     auto& notation = bestMove.first;
     auto& move = bestMove.second;
-    const char promotionPiece = notation.find('=') != string::npos ? notation[notation.find('=') + 1] : 'Q';
+    int eqPos = -1;
+    for (int i = 0; i < 8; i++) {
+        if (notation[i] == '\0') break;
+        if (notation[i] == '=') eqPos = i;
+    }
+    const char promotionPiece = eqPos != -1 ? notation[eqPos] : 'Q';
     playMove(move.sRow, move.sCol, move.eRow, move.eCol, promotionPiece);
 }
 

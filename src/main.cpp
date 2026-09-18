@@ -241,9 +241,9 @@ int main() {
 				string numText = to_string(i / 2 + 1);
 				numText += '.';
 				DrawText(numText.c_str(), notationRect.x + 10, row, MEDIUM_FONT, WHITE);
-				DrawText(game.moves[i].c_str(), notationRect.x + 60, row, MEDIUM_FONT, WHITE);
+				DrawText(game.moves[i].data(), notationRect.x + 60, row, MEDIUM_FONT, WHITE);
 			} else {
-				DrawText(game.moves[i].c_str(), notationRect.x + 170, row, MEDIUM_FONT, WHITE);
+				DrawText(game.moves[i].data(), notationRect.x + 170, row, MEDIUM_FONT, WHITE);
 			}
 		}
 
