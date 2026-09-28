@@ -1,8 +1,4 @@
 #include "engine.h"
-#include "evaluate.h"
-#include "moveGenerator.h"
-#include <iostream>
-#include <algorithm>
 
 constexpr int INF = 1000000000;
 constexpr int CHECKMATE_EVAL = 100000;
@@ -11,7 +7,7 @@ int CALLCOUNT = 0;
 
 Engine::Engine() {};
 
-void Engine::playMove(BoardState& boardState, const array<char, 8>& notation, const Move& move) {
+void Engine::playMove(BoardState& boardState, const Move& move) {
     auto& board = boardState.board;
     const int sRow = move.sRow;
     const int sCol = move.sCol;
@@ -19,15 +15,6 @@ void Engine::playMove(BoardState& boardState, const array<char, 8>& notation, co
     const int eCol = move.eCol;
     int evaluation = move.evaluation;
 
-    int eqPos = -1;
-    int lastPos = -1;
-    for (int i = 0; i < 8; i++) {
-        if (notation[i] == '\0') {
-            lastPos = i;
-            break;
-        }
-        if (notation[i] == '=') eqPos = i;
-    }
     // 50 move rule
     if (board[eRow][eCol] != ' ' || board[sRow][sCol] == White::PAWN || board[sRow][sCol] == Black::PAWN) {
         boardState.stalemateMoveCounter = 0;
@@ -77,24 +64,26 @@ void Engine::playMove(BoardState& boardState, const array<char, 8>& notation, co
 
     // Pawn promotion
     if (board[eRow][eCol] == White::PAWN && eRow == 0) {
-        board[eRow][eCol] = notation[eqPos + 1];
+        board[eRow][eCol] = move.promotionPiece;
     } else if (board[eRow][eCol] == Black::PAWN && eRow == 7) {
-        board[eRow][eCol] = notation[eqPos + 1] + 0x20;
+        board[eRow][eCol] = move.promotionPiece;
     }
 
     // Castle
-    if (notation[0] == 'O') {
-        if (notation[4] == 'O') {
-            board[sRow][3] = board[sRow][0];
-            board[sRow][0] = ' ';
-        } else {
+    if ((board[eRow][eCol] == White::KING || board[eRow][eCol] == Black::KING)) {
+        if (eCol - sCol == 2) {
+            // Short castle
             board[sRow][5] = board[sRow][7];
             board[sRow][7] = ' ';
+        } else if (sCol - eCol == 2) {
+            // Long castle
+            board[sRow][3] = board[sRow][0];
+            board[sRow][0] = ' ';
         }
     }
 
     // Checkmate
-    if (notation[lastPos - 1] == '#') {
+    if (move.isMate) {
         if (boardState.isWhite) evaluation = CHECKMATE_EVAL;
         else evaluation = -CHECKMATE_EVAL;
     } else {
@@ -117,37 +106,35 @@ void Engine::playMove(BoardState& boardState, const array<char, 8>& notation, co
     boardState.evaluation = evaluation;
 }
 
-pair<array<char, 8>, Move> Engine::getBestMove(BoardState& root, int depth) {
-    Move bestMove(-1,-1,-1,-1,-1);
+Move& Engine::getBestMove(BoardState& root, int depth) {
+    Move* bestMove = nullptr;
     int alpha = -INF;
-    array<char, 8> bestMoveNotation;
 
     // sort the initial list of moves
     sort(root.legalMoves.begin(), root.legalMoves.end(),
-        [sign = root.isWhite ? 1 : -1](auto const& a, auto const& b) {
-            return a.second.evaluation * sign > b.second.evaluation * sign;
+        [sign = root.isWhite ? 1 : -1](const auto& a, const auto& b) {
+            return a.evaluation * sign > b.evaluation * sign;
         });
     CALLCOUNT = 0;
 
-    for (const auto& [notation, move] : root.legalMoves) {
+    for (auto& move : root.legalMoves) {
         auto newState(root);
 
-        playMove(newState, notation, move);
+        playMove(newState, move);
         newState.isWhite = !root.isWhite;
-        generateLegalMoves(newState);
+        mg.generateLegalMoves(newState);
 
         int score = -alphaBeta(newState, -INF, -alpha, depth - 1);
         
         //cout << notation << ':' << CALLCOUNT << endl;
         //CALLCOUNT = 0;
-        if (score > alpha) {
+        if (bestMove == nullptr || score > alpha) {
             alpha = score;
-            bestMove = move;
-            bestMoveNotation = notation;
+            bestMove = &move;
         }
     }
-    cout << "Best move: " << bestMoveNotation.data() << ", nodes checked: " << CALLCOUNT << endl;
-    return { bestMoveNotation, bestMove };
+    cout << "Nodes checked: " << CALLCOUNT << endl;
+    return *bestMove;
 }
 
 // Using negamax
@@ -157,16 +144,16 @@ int Engine::alphaBeta(BoardState& prevState, int alpha, int beta, int depthleft)
 
     if (depthleft > 1) {
         sort(prevState.legalMoves.begin(), prevState.legalMoves.end(),
-            [sign = prevState.isWhite ? 1 : -1](auto const& a, auto const& b) {
-                return a.second.evaluation * sign > b.second.evaluation * sign;
+            [sign = prevState.isWhite ? 1 : -1](const auto& a, const auto& b) {
+                return a.evaluation * sign > b.evaluation * sign;
             });
     }
     int bestValue = -INF;
-    for (const auto& [notation, move] : prevState.legalMoves) {
+    for (const auto& move : prevState.legalMoves) {
         auto newState(prevState);
-        playMove(newState, notation, move);
+        playMove(newState, move);
         newState.isWhite = !prevState.isWhite;
-        if (depthleft - 1 > 0) generateLegalMoves(newState);
+        if (depthleft - 1 > 0) mg.generateLegalMoves(newState);
         const int score = -alphaBeta(newState, -beta, -alpha, depthleft - 1);
         if (score > bestValue) {
             bestValue = score;

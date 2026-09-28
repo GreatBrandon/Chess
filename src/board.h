@@ -1,10 +1,16 @@
 #pragma once
+
 #include "common.h"
 #include "engine.h"
+#include "moveGenerator.h"
+#include "evaluate.h"
 #include <array>
 #include <vector>
 #include <string>
 #include <unordered_map>
+#include <map>
+#include <chrono>
+#include <iostream>
 
 using namespace std;
 
@@ -13,8 +19,9 @@ constexpr int MIN_DEPTH = 2;
 
 class chessGame {
 public:
-	Engine engine = Engine();
-	vector<array<char, 8>> moves;
+	Engine engine;
+	MoveGenerator mg;
+	vector<string> moves;
 	BoardState boardState;
 	vector<BoardState> previousMoves;
 	bool isDraw = false;
@@ -37,4 +44,5 @@ public:
 	void decreaseDepth();
 private:
 	void playBotMove();
+	string getNotationFromMove(const Move&);
 };

@@ -306,12 +306,14 @@
     <ClInclude Include="src\common.h" />
     <ClInclude Include="src\engine.h" />
     <ClInclude Include="src\evaluate.h" />
+    <ClInclude Include="src\moveGenerator.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\board.cpp" />
     <ClCompile Include="src\engine.cpp" />
     <ClCompile Include="src\evaluate.cpp" />
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\moveGenerator.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="src\icon.ico" />

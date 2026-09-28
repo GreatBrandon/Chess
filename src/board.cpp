@@ -1,9 +1,4 @@
 #include "board.h"
-#include "evaluate.h"
-#include "moveGenerator.h"
-#include <map>
-#include <chrono>
-#include <iostream>
 
 chessGame::chessGame() {
     newGame(false);
@@ -17,7 +12,7 @@ void chessGame::newGame(bool botGame) {
     isCheckmate = false;
     this->botGame = botGame;
     lastIrreversibleMove = 0;
-    generateLegalMoves(boardState);
+    mg.generateLegalMoves(boardState);
     previousMoves.clear();
     previousMoves.push_back(boardState);
 }
@@ -33,29 +28,23 @@ void chessGame::playMove(int start, int end, char promotionPiece) {
 void chessGame::playMove(int sRow, int sCol, int eRow, int eCol, char promotionPiece) {
     auto& board = boardState.board;
 
-    for (auto const& [notation, move] : boardState.legalMoves) {
+    for (auto const& move : boardState.legalMoves) {
         if (move.sRow == sRow && move.sCol == sCol && move.eRow == eRow && move.eCol == eCol) {
-            int eqPos = -1;
-            int lastPos = -1;
-            for (int i = 0; i < 8; i++) {
-                if (notation[i] == '\0') {
-                    lastPos = i;
-                    break;
-                }
-                if (notation[i] == '=') eqPos = i;
+            const char start = board[sRow][sCol];
+            const char end = board[eRow][eCol];
+
+            if ((start == White::PAWN && move.eRow == 0) || (start == Black::PAWN && move.eRow == 7)) {
+                if (move.promotionPiece != promotionPiece) continue;
             }
 
-            if (eqPos != -1 && notation[eqPos + 1] != promotionPiece) continue;
+            moves.push_back(getNotationFromMove(move));
+            engine.playMove(boardState, move);
 
-            engine.playMove(boardState, notation, move);
-
-            // optional optimisation for 3 time repetition
             if (boardState.stalemateMoveCounter = 0) lastIrreversibleMove = previousMoves.size();
 
-            moves.push_back(notation);
 
             // Checkmate
-            if (notation[lastPos - 1] == '#') {
+            if (move.isMate) {
                 isCheckmate = true;
                 return;
             }
@@ -64,6 +53,7 @@ void chessGame::playMove(int sRow, int sCol, int eRow, int eCol, char promotionP
             if (boardState.stalemateMoveCounter == 100) {
                 isDraw = true;
             }
+
             map<array<array<char, 8>, 8>, int> previousPositions;
             for (int i = lastIrreversibleMove; i < previousMoves.size(); i++) {
                 if (++previousPositions[previousMoves[i].board] == 3) {
@@ -81,7 +71,7 @@ void chessGame::playMove(int sRow, int sCol, int eRow, int eCol, char promotionP
 
 void chessGame::changePlayer() {
     boardState.isWhite = !boardState.isWhite;
-    generateLegalMoves(boardState);
+    mg.generateLegalMoves(boardState);
     //cout << boardState.legalMoves.size() << "legal moves found for " << boardState.isWhite << endl;
     previousMoves.push_back(boardState);
 
@@ -100,7 +90,7 @@ void chessGame::changePlayer() {
 
 vector<pair<int, int>> chessGame::getValidMovesFromPosition(int sRow, int sCol) {
     vector<pair<int, int>> validMoves;
-    for (auto const& [notation, move] : boardState.legalMoves) {
+    for (auto const& move : boardState.legalMoves) {
         if (move.sRow == sRow && move.sCol == sCol) {
             validMoves.push_back({ move.eRow, move.eCol });
         }
@@ -118,19 +108,11 @@ bool chessGame::isBlack() const {
 
 void chessGame::playBotMove() {
     auto start = chrono::high_resolution_clock::now();
-    auto bestMove = engine.getBestMove(boardState, engineDepth);
+    auto &move = engine.getBestMove(boardState, engineDepth);
     auto end = chrono::high_resolution_clock::now();
     auto durationMs = chrono::duration_cast<chrono::milliseconds>(end - start).count();
-    cout << "Took " << durationMs << " ms" << endl;
-    auto& notation = bestMove.first;
-    auto& move = bestMove.second;
-    int eqPos = -1;
-    for (int i = 0; i < 8; i++) {
-        if (notation[i] == '\0') break;
-        if (notation[i] == '=') eqPos = i;
-    }
-    const char promotionPiece = eqPos != -1 ? notation[eqPos] : 'Q';
-    playMove(move.sRow, move.sCol, move.eRow, move.eCol, promotionPiece);
+    cout << "Best move: " << getNotationFromMove(move) << ", took " << durationMs << " ms" << endl;
+    playMove(move.sRow, move.sCol, move.eRow, move.eCol, move.promotionPiece);
 }
 
 void chessGame::countPieces() {
@@ -149,4 +131,75 @@ void chessGame::increaseDepth() {
 
 void chessGame::decreaseDepth() {
     if (engineDepth > MIN_DEPTH) engineDepth--;
+}
+
+
+// Invoke this function BEFORE the move has been played
+string chessGame::getNotationFromMove(const Move& move) {
+    const char start = boardState.board[move.sRow][move.sCol];
+    const char end = boardState.board[move.eRow][move.eCol];
+    const bool isPawn = start == White::PAWN || start == Black::PAWN;
+    string notation;
+
+    if (start == White::KING || start == Black::KING) {
+        if (move.eCol - move.sCol == 2) {
+            notation += "O-O";
+        } else if (move.sCol - move.eCol == 2) {
+            notation += "O-O-O";
+        }
+    } else {
+
+
+        if (!isPawn) {
+            if (boardState.isWhite) notation += start;
+            else notation += start - 0x20;
+
+            bool ambiguous = false;
+            bool fileUnique = true;
+            bool rankUnique = true;
+
+            for (const auto& move2 : boardState.legalMoves) {
+                if (&move == &move2) continue;
+                if (boardState.board[move2.sRow][move2.sCol] == start && move2.eRow == move.eRow && move2.eCol == move.eCol) {
+                    ambiguous = true;
+                    if (move.sCol == move2.sCol) fileUnique = false;
+                    if (move.sRow == move2.sRow) rankUnique = false;
+                }
+            }
+
+            if (ambiguous) {
+                if (fileUnique) {
+                    notation += (char)('a' + move.sCol);
+                } else if (rankUnique) {
+                    notation += (char)('8' - move.sRow);
+                } else {
+                    notation += (char)('a' + move.sCol);
+                    notation += (char)('8' - move.sRow);
+                }
+            }
+        }
+
+        if (isPawn && abs(move.eCol - move.sCol) == 1) {
+            notation += (char)('a' + move.sCol);
+            notation += 'x';
+        } else if (end != ' ') {
+            if (isPawn) {
+                notation += (char)('a' + move.sCol);
+            }
+            notation += 'x';
+        }
+
+        notation += (char)('a' + move.eCol);
+        notation += (char)('8' - move.eRow);
+
+        if (move.promotionPiece != '\0') {
+            notation += '=';
+            notation += move.promotionPiece;
+        }
+    }
+
+    if (move.isCheck) notation += '+';
+    else if (move.isMate) notation += '#';
+
+    return notation;
 }

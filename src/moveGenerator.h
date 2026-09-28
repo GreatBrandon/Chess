@@ -1,14 +1,19 @@
 #pragma once
 
 #include "common.h"
+#include "evaluate.h"
 #include <array>
 #include <string>
+#include <iostream>
+#include <algorithm>
 
 using namespace std;
 
-void generateLegalMoves(BoardState&);
+class MoveGenerator {
+public:
+	void generateLegalMoves(BoardState&);
 
-namespace {
+private:
 	int sRow = -1;
 	int sCol = -1;
 	void generateLegalMovesRow(BoardState&);
@@ -20,7 +25,6 @@ namespace {
 	void generateLegalMovesUsingOffsets(BoardState&, const array<pair<int, int>, 8>&);
 	bool checkMate(BoardState&);
 	bool addMove(BoardState&, const int&, const int&);
-	constexpr static bool isKingInCheck(BoardState&, bool);
-	constexpr static bool actuallyCheckIsKingInCheck(bool, char, bool);
-	void disambiguateMoves(BoardState&);
-}
+	bool isKingInCheck(const BoardState&, const bool) const;
+	bool actuallyCheckIsKingInCheck(bool, char, bool) const;
+};
