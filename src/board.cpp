@@ -1,5 +1,6 @@
 #include "board.h"
 #include "evaluate.h"
+#include "moveGenerator.h"
 #include <map>
 #include <chrono>
 #include <iostream>
@@ -16,7 +17,7 @@ void chessGame::newGame(bool botGame) {
     isCheckmate = false;
     this->botGame = botGame;
     lastIrreversibleMove = 0;
-    engine.generateLegalMoves(boardState);
+    generateLegalMoves(boardState);
     previousMoves.clear();
     previousMoves.push_back(boardState);
 }
@@ -54,7 +55,7 @@ void chessGame::playMove(int sRow, int sCol, int eRow, int eCol, char promotionP
             moves.push_back(notation);
 
             // Checkmate
-            if (lastPos - 1 == '#') {
+            if (notation[lastPos - 1] == '#') {
                 isCheckmate = true;
                 return;
             }
@@ -80,7 +81,7 @@ void chessGame::playMove(int sRow, int sCol, int eRow, int eCol, char promotionP
 
 void chessGame::changePlayer() {
     boardState.isWhite = !boardState.isWhite;
-    engine.generateLegalMoves(boardState);
+    generateLegalMoves(boardState);
     //cout << boardState.legalMoves.size() << "legal moves found for " << boardState.isWhite << endl;
     previousMoves.push_back(boardState);
 
