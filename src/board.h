@@ -14,7 +14,7 @@
 
 using namespace std;
 
-constexpr int MAX_DEPTH = 6;
+constexpr int MAX_DEPTH = 7;
 constexpr int MIN_DEPTH = 2;
 
 class chessGame {

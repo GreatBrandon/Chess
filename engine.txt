@@ -1,0 +1,18 @@
+Node count: 125369 - eval only (sort depthLeft > 1) (954ms)
+Node count: 103014 - eval only (sort all) (1033ms)
+Node count: 120633 - MVV LVA (sort all) (1087ms)
+Node count: 139921 - MVV LVA (sort depthLeft > 1) (1010ms)
+
+eval only (sort depthLeft > 1)
+nodes checked: 125369
+cutoffs=13033 first-move rate=69.746%
+eval only (sort all)
+nodes checked: 103014
+cutoffs=13033 first-move rate=94.161%
+
+MVV LVA (sort depthLeft > 1)
+nodes checked: 139921
+cutoffs=13041 first-move rate=64.926%
+MVV LVA (sort all)
+nodes checked: 120633
+cutoffs=13041 first-move rate=72.6171%

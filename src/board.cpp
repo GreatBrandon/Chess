@@ -139,42 +139,48 @@ string chessGame::getNotationFromMove(const Move& move) {
     const char start = boardState.board[move.sRow][move.sCol];
     const char end = boardState.board[move.eRow][move.eCol];
     const bool isPawn = start == White::PAWN || start == Black::PAWN;
+    const bool isKing = start == White::KING || start == Black::KING;
     string notation;
+    bool castled = false;
 
-    if (start == White::KING || start == Black::KING) {
+    if (isKing) {
         if (move.eCol - move.sCol == 2) {
             notation += "O-O";
+            castled = true;
         } else if (move.sCol - move.eCol == 2) {
             notation += "O-O-O";
+            castled = true;
         }
-    } else {
+    }
 
-
+    if (!castled) {
         if (!isPawn) {
             if (boardState.isWhite) notation += start;
             else notation += start - 0x20;
 
-            bool ambiguous = false;
-            bool fileUnique = true;
-            bool rankUnique = true;
+            if (!isKing) {
+                bool ambiguous = false;
+                bool fileUnique = true;
+                bool rankUnique = true;
 
-            for (const auto& move2 : boardState.legalMoves) {
-                if (&move == &move2) continue;
-                if (boardState.board[move2.sRow][move2.sCol] == start && move2.eRow == move.eRow && move2.eCol == move.eCol) {
-                    ambiguous = true;
-                    if (move.sCol == move2.sCol) fileUnique = false;
-                    if (move.sRow == move2.sRow) rankUnique = false;
+                for (const auto& move2 : boardState.legalMoves) {
+                    if (&move == &move2) continue;
+                    if (boardState.board[move2.sRow][move2.sCol] == start && move2.eRow == move.eRow && move2.eCol == move.eCol) {
+                        ambiguous = true;
+                        if (move.sCol == move2.sCol) fileUnique = false;
+                        if (move.sRow == move2.sRow) rankUnique = false;
+                    }
                 }
-            }
 
-            if (ambiguous) {
-                if (fileUnique) {
-                    notation += (char)('a' + move.sCol);
-                } else if (rankUnique) {
-                    notation += (char)('8' - move.sRow);
-                } else {
-                    notation += (char)('a' + move.sCol);
-                    notation += (char)('8' - move.sRow);
+                if (ambiguous) {
+                    if (fileUnique) {
+                        notation += (char)('a' + move.sCol);
+                    } else if (rankUnique) {
+                        notation += (char)('8' - move.sRow);
+                    } else {
+                        notation += (char)('a' + move.sCol);
+                        notation += (char)('8' - move.sRow);
+                    }
                 }
             }
         }

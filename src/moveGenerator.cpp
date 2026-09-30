@@ -153,8 +153,9 @@ void MoveGenerator::generateLegalMovesKing(BoardState& state) {
                     } else {
                         state.legalMoves.emplace_back(sRow, sCol, sRow, 6, state.evaluation, true);
                     }
+                } else {
+                    state.legalMoves.emplace_back(sRow, sCol, sRow, 6, state.evaluation);
                 }
-                state.legalMoves.emplace_back(sRow, sCol, sRow, 6, state.evaluation);
             }
         }
     }
@@ -173,8 +174,9 @@ void MoveGenerator::generateLegalMovesKing(BoardState& state) {
                     } else {
                         state.legalMoves.emplace_back(sRow, sCol, sRow, 2, state.evaluation, true);
                     }
+                } else {
+                    state.legalMoves.emplace_back(sRow, sCol, sRow, 2, state.evaluation);
                 }
-                state.legalMoves.emplace_back(sRow, sCol, sRow, 2, state.evaluation);
             }
         }
     }
@@ -240,8 +242,9 @@ bool MoveGenerator::addMove(BoardState& state, const int& eRow, const int& eCol)
                     } else { 
                         state.legalMoves.emplace_back(sRow, sCol, eRow, eCol, state.evaluation, true, false, piece);
                     }
+                } else {
+                    state.legalMoves.emplace_back(sRow, sCol, eRow, eCol, state.evaluation, false, false, piece);
                 }
-                state.legalMoves.emplace_back(sRow, sCol, eRow, eCol, state.evaluation, false, false, piece);
             }
         }
         board[sRow][sCol] = state.isWhite ? White::PAWN : Black::PAWN;
@@ -262,8 +265,9 @@ bool MoveGenerator::addMove(BoardState& state, const int& eRow, const int& eCol)
             } else {
                 state.legalMoves.emplace_back(sRow, sCol, eRow, eCol, state.evaluation, true);
             }
+        } else {
+            state.legalMoves.emplace_back(sRow, sCol, eRow, eCol, state.evaluation);
         }
-        state.legalMoves.emplace_back(sRow, sCol, eRow, eCol, state.evaluation);
     }
 
     // Undo move on state
